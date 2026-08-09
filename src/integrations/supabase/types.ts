@@ -14,16 +14,203 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      invitations: {
+        Row: {
+          created_at: string
+          id: string
+          invitee_id: string
+          inviter_id: string
+          message: string | null
+          responded_at: string | null
+          status: Database["public"]["Enums"]["invite_status"]
+          team_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invitee_id: string
+          inviter_id: string
+          message?: string | null
+          responded_at?: string | null
+          status?: Database["public"]["Enums"]["invite_status"]
+          team_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invitee_id?: string
+          inviter_id?: string
+          message?: string | null
+          responded_at?: string | null
+          status?: Database["public"]["Enums"]["invite_status"]
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invitations_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          department: string | null
+          email: string
+          full_name: string
+          gender: string | null
+          id: string
+          phone: string | null
+          roll_no: string | null
+          skills: string[]
+          updated_at: string
+          year: number | null
+        }
+        Insert: {
+          created_at?: string
+          department?: string | null
+          email?: string
+          full_name?: string
+          gender?: string | null
+          id: string
+          phone?: string | null
+          roll_no?: string | null
+          skills?: string[]
+          updated_at?: string
+          year?: number | null
+        }
+        Update: {
+          created_at?: string
+          department?: string | null
+          email?: string
+          full_name?: string
+          gender?: string | null
+          id?: string
+          phone?: string | null
+          roll_no?: string | null
+          skills?: string[]
+          updated_at?: string
+          year?: number | null
+        }
+        Relationships: []
+      }
+      team_members: {
+        Row: {
+          id: string
+          is_leader: boolean
+          joined_at: string
+          team_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          is_leader?: boolean
+          joined_at?: string
+          team_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          is_leader?: boolean
+          joined_at?: string
+          team_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_members_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      teams: {
+        Row: {
+          admin_note: string | null
+          category: string | null
+          created_at: string
+          id: string
+          leader_id: string
+          name: string
+          problem_statement: string | null
+          status: Database["public"]["Enums"]["team_status"]
+          updated_at: string
+        }
+        Insert: {
+          admin_note?: string | null
+          category?: string | null
+          created_at?: string
+          id?: string
+          leader_id: string
+          name: string
+          problem_statement?: string | null
+          status?: Database["public"]["Enums"]["team_status"]
+          updated_at?: string
+        }
+        Update: {
+          admin_note?: string | null
+          category?: string | null
+          created_at?: string
+          id?: string
+          leader_id?: string
+          name?: string
+          problem_statement?: string | null
+          status?: Database["public"]["Enums"]["team_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      accept_invitation: { Args: { _invitation_id: string }; Returns: string }
+      create_team: {
+        Args: { _category: string; _name: string; _problem_statement: string }
+        Returns: string
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_team_leader: {
+        Args: { _team_id: string; _user_id: string }
+        Returns: boolean
+      }
+      my_team_id: { Args: never; Returns: string }
+      team_is_open: { Args: { _team_id: string }; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "student"
+      invite_status: "pending" | "accepted" | "declined" | "cancelled"
+      team_status: "forming" | "submitted" | "approved" | "rejected" | "locked"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +337,10 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "student"],
+      invite_status: ["pending", "accepted", "declined", "cancelled"],
+      team_status: ["forming", "submitted", "approved", "rejected", "locked"],
+    },
   },
 } as const
