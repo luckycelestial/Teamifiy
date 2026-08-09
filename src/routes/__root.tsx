@@ -81,15 +81,21 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "SIH Portal | Sri Eshwar Innovation Studio" },
+      { title: "SIH Team Formation Portal | Sri Eshwar Innovation Studio" },
       {
         name: "description",
         content:
-          "Official Smart India Hackathon team formation portal of the Sri Eshwar Innovation Studio.",
+          "Form your Smart India Hackathon team at Sri Eshwar. Create a team, invite classmates, accept invites — one verified team per student.",
       },
       { name: "author", content: "Sri Eshwar Innovation Studio" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { property: "og:title", content: "SIH Team Formation Portal | Sri Eshwar Innovation Studio" },
+      { name: "twitter:title", content: "SIH Team Formation Portal | Sri Eshwar Innovation Studio" },
+      { property: "og:description", content: "Form your Smart India Hackathon team at Sri Eshwar. Create a team, invite classmates, accept invites — one verified team per student." },
+      { name: "twitter:description", content: "Form your Smart India Hackathon team at Sri Eshwar. Create a team, invite classmates, accept invites — one verified team per student." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/2076c01f41e795e5e2fa222ea418b7f7/id-preview-0e065205--b3635614-fde1-4e68-9f5a-f454c18fb111.lovable.app-1786255763607.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/2076c01f41e795e5e2fa222ea418b7f7/id-preview-0e065205--b3635614-fde1-4e68-9f5a-f454c18fb111.lovable.app-1786255763607.png" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },

@@ -16,7 +16,7 @@ export const Route = createFileRoute("/")({
       {
         property: "og:description",
         content:
-          "Create a team, invite classmates and lock a valid 6-member SIH team — the official Innovation Studio portal.",
+          "Form your Smart India Hackathon team at Sri Eshwar. Create a team, invite classmates, accept invites — one verified team per student.",
       },
     ],
   }),
