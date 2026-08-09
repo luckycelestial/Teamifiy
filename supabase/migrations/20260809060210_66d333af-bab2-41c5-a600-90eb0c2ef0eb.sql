@@ -1,0 +1,17 @@
+REVOKE EXECUTE ON FUNCTION public.has_role(uuid, public.app_role) FROM anon, public;
+REVOKE EXECUTE ON FUNCTION public.is_team_leader(uuid, uuid) FROM anon, public;
+REVOKE EXECUTE ON FUNCTION public.team_is_open(uuid) FROM anon, public;
+REVOKE EXECUTE ON FUNCTION public.my_team_id() FROM anon, public;
+REVOKE EXECUTE ON FUNCTION public.accept_invitation(uuid) FROM anon, public;
+REVOKE EXECUTE ON FUNCTION public.create_team(text, text, text) FROM anon, public;
+REVOKE EXECUTE ON FUNCTION public.handle_new_user() FROM anon, public, authenticated;
+REVOKE EXECUTE ON FUNCTION public.guard_team_member() FROM anon, public, authenticated;
+REVOKE EXECUTE ON FUNCTION public.guard_invitation() FROM anon, public, authenticated;
+REVOKE EXECUTE ON FUNCTION public.cleanup_after_join() FROM anon, public, authenticated;
+REVOKE EXECUTE ON FUNCTION public.touch_updated_at() FROM anon, public, authenticated;
+GRANT EXECUTE ON FUNCTION public.has_role(uuid, public.app_role) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_team_leader(uuid, uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.team_is_open(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.my_team_id() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.accept_invitation(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.create_team(text, text, text) TO authenticated;
