@@ -42,6 +42,8 @@
   --color-navy: var(--navy);
   --color-navy-soft: var(--navy-soft);
   --color-gold: var(--gold);
+  --color-surface-muted: var(--surface-muted);
+
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -86,6 +88,8 @@
   --navy: oklch(0.22 0.058 265);
   --navy-soft: oklch(0.35 0.1 262);
   --gold: oklch(0.82 0.152 82);
+  --surface-muted: oklch(0.978 0.006 265);
+
   --border: oklch(0.91 0.014 265);
   --input: oklch(0.91 0.014 265);
   --ring: oklch(0.45 0.11 263);
