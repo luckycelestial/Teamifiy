@@ -1,21 +1,34 @@
+export type UserRole = "admin" | "evaluator" | "student";
+
 export type ParsedEmailDetails = {
   fullName: string;
   department: string | null;
   year: number | null;
   isAdmin: boolean;
+  role: UserRole;
 };
 
 export function parseSeceEmail(email: string, referenceYear?: number): ParsedEmailDetails {
   const clean = email.trim().toLowerCase();
-  const configuredAdmin = (process.env.NEXT_PUBLIC_ADMIN_EMAIL || "").trim().toLowerCase();
 
-  // Pure environment-variable based Admin check
-  if (configuredAdmin !== "" && clean === configuredAdmin) {
+  // Initial role detection for fresh profile creation
+  if (clean === "cfi@sece.ac.in" || clean.startsWith("cfi@")) {
     return {
       fullName: "Centre for Innovation Coordinator",
       department: "Innovation Studio",
       year: null,
       isAdmin: true,
+      role: "admin",
+    };
+  }
+
+  if (clean.startsWith("evaluator") || clean.startsWith("eval.")) {
+    return {
+      fullName: "SIH Evaluator",
+      department: "Innovation Committee",
+      year: null,
+      isAdmin: false,
+      role: "evaluator",
     };
   }
 
@@ -52,6 +65,7 @@ export function parseSeceEmail(email: string, referenceYear?: number): ParsedEma
       department,
       year,
       isAdmin: false,
+      role: "student",
     };
   }
 
@@ -63,6 +77,7 @@ export function parseSeceEmail(email: string, referenceYear?: number): ParsedEma
     department: null,
     year: null,
     isAdmin: false,
+    role: "student",
   };
 }
 

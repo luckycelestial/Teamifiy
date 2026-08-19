@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { getDashboardData, getAdminDashboardData, updateTeamStatus, rolloverAcademicYear, toggleRegistrations } from "@/app/actions/portal";
+import { getDashboardData, getAdminDashboardData, updateTeamStatus, rolloverAcademicYear, toggleRegistrations, updateUserRole } from "@/app/actions/portal";
 import { PortalHeader } from "@/components/portal/PortalHeader";
 import { StatusBadge } from "@/components/portal/StatusBadge";
 
@@ -27,6 +27,7 @@ type ProfileItem = {
   year: number | null;
   gender: string | null;
   phone: string | null;
+  role: string;
 };
 
 function teamIssues(members: ProfileItem[]): string[] {
@@ -159,6 +160,16 @@ function AdminContent() {
       loadData();
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Failed to update team status");
+    }
+  }
+
+  async function handleRoleChange(targetUserId: string, newRole: "admin" | "evaluator" | "student") {
+    try {
+      await updateUserRole(targetUserId, newRole);
+      toast.success(`User role updated to ${newRole}.`);
+      loadData();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Failed to update user role");
     }
   }
 
@@ -647,12 +658,13 @@ function AdminContent() {
                       <th className="px-4 py-3">Gender</th>
                       <th className="px-4 py-3">Phone</th>
                       <th className="px-4 py-3">Team Status</th>
+                      <th className="px-4 py-3">Role</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
                     {filteredStudents.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                        <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
                           No registered students match this filter.
                         </td>
                       </tr>
@@ -680,6 +692,17 @@ function AdminContent() {
                                   Unassigned
                                 </span>
                               )}
+                            </td>
+                            <td className="px-4 py-3">
+                              <select
+                                value={(s as ProfileItem).role || "student"}
+                                onChange={(e) => handleRoleChange(s.id, e.target.value as "admin" | "evaluator" | "student")}
+                                className="h-7 text-xs rounded border border-border bg-background px-2 font-semibold text-foreground cursor-pointer"
+                              >
+                                <option value="student">Student</option>
+                                <option value="evaluator">Evaluator</option>
+                                <option value="admin">Admin</option>
+                              </select>
                             </td>
                           </tr>
                         );

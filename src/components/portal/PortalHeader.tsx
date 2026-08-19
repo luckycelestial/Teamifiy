@@ -32,16 +32,21 @@ export type ProfileData = {
 };
 
 type Props = {
-  isAdmin: boolean;
+  isAdmin?: boolean;
+  isEvaluator?: boolean;
+  role?: "admin" | "evaluator" | "student";
   email: string;
   profile?: ProfileData;
 };
 
-export function PortalHeader({ isAdmin, email, profile }: Props) {
+export function PortalHeader({ isAdmin = false, isEvaluator = false, role, email, profile }: Props) {
   const router = useRouter();
+  const effectiveIsAdmin = isAdmin || role === "admin";
+  const effectiveIsEvaluator = isEvaluator || role === "evaluator";
+
   const [isPending, startTransition] = useTransition();
   const [isEditing, setIsEditing] = useState(
-    !isAdmin && !!profile && (!profile.gender || !profile.phone)
+    !effectiveIsAdmin && !effectiveIsEvaluator && !!profile && (!profile.gender || !profile.phone)
   );
   const [gender, setGender] = useState(profile?.gender || "");
   const [phone, setPhone] = useState(profile?.phone || "");
@@ -85,7 +90,7 @@ export function PortalHeader({ isAdmin, email, profile }: Props) {
         <div className="flex items-center gap-3 sm:gap-5">
           <Logo tone="light" className="text-[18px] sm:text-[20px]" />
 
-          {isAdmin && (
+          {effectiveIsAdmin && (
             <div className="flex items-center gap-2 border-l border-white/20 pl-3 sm:pl-5">
               <h1 className="text-sm sm:text-base font-extrabold tracking-tight text-white">
                 Admin Console
@@ -96,7 +101,18 @@ export function PortalHeader({ isAdmin, email, profile }: Props) {
             </div>
           )}
 
-          {profile && !isAdmin && (
+          {effectiveIsEvaluator && !effectiveIsAdmin && (
+            <div className="flex items-center gap-2 border-l border-white/20 pl-3 sm:pl-5">
+              <h1 className="text-sm sm:text-base font-extrabold tracking-tight text-white">
+                Evaluator Portal
+              </h1>
+              <span className="rounded-full bg-emerald-500/20 border border-emerald-400/40 px-2 py-0.5 text-[10px] sm:text-[11px] font-bold text-emerald-300">
+                SIH Evaluation Panel
+              </span>
+            </div>
+          )}
+
+          {profile && !effectiveIsAdmin && !effectiveIsEvaluator && (
             <div className="flex items-center gap-2 sm:gap-2.5 border-l border-white/20 pl-3 sm:pl-5">
               <div className="hidden sm:flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white shrink-0">
                 <User className="h-4 w-4" />
@@ -118,7 +134,7 @@ export function PortalHeader({ isAdmin, email, profile }: Props) {
 
         {/* Right: gender/phone for student, sign out */}
         <div className="flex items-center gap-3">
-          {!isAdmin && profile && (
+          {!effectiveIsAdmin && !effectiveIsEvaluator && profile && (
             isEditing ? (
               <div className="flex flex-wrap items-center gap-2">
                 <div className="w-28">

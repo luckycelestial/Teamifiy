@@ -22,11 +22,45 @@ export async function getProfile(userId: string) {
   return await prisma.profile.findUnique({ where: { id: userId } });
 }
 
+export async function getUserRole(userId: string, email?: string): Promise<"admin" | "evaluator" | "student"> {
+  if (userId) {
+    const profile = await prisma.profile.findUnique({ where: { id: userId } });
+    if (profile && profile.role) {
+      return profile.role as "admin" | "evaluator" | "student";
+    }
+  }
+  if (email) {
+    const cleanEmail = email.trim().toLowerCase();
+    const profile = await prisma.profile.findUnique({ where: { email: cleanEmail } });
+    if (profile && profile.role) {
+      return profile.role as "admin" | "evaluator" | "student";
+    }
+    return parseSeceEmail(cleanEmail).role;
+  }
+  return "student";
+}
+
 export async function checkIsAdmin(userId: string, email?: string) {
-  if (!email) return false;
-  const configuredAdmin = (process.env.NEXT_PUBLIC_ADMIN_EMAIL || "").trim().toLowerCase();
-  const clean = email.trim().toLowerCase();
-  return configuredAdmin !== "" && clean === configuredAdmin;
+  const role = await getUserRole(userId, email);
+  return role === "admin";
+}
+
+export async function checkIsEvaluator(userId: string, email?: string) {
+  const role = await getUserRole(userId, email);
+  return role === "evaluator" || role === "admin";
+}
+
+export async function updateUserRole(targetUserId: string, newRole: "admin" | "evaluator" | "student") {
+  const session = await requireAuth();
+  const isAdmin = await checkIsAdmin(session.id, session.email);
+  if (!isAdmin) {
+    throw new Error("Unauthorized: admin access required to update user roles.");
+  }
+
+  return await prisma.profile.update({
+    where: { id: targetUserId },
+    data: { role: newRole },
+  });
 }
 
 // ─── Profile mutations ────────────────────────────────────────────────────────
@@ -57,6 +91,7 @@ export async function updateProfile(userId: string, data: Partial<ProfileData>) 
     });
   }
 
+  const parsed = parseSeceEmail(data.email ?? "");
   return await prisma.profile.create({
     data: {
       id: userId,
@@ -66,6 +101,7 @@ export async function updateProfile(userId: string, data: Partial<ProfileData>) 
       year: data.year,
       gender: data.gender,
       phone: data.phone,
+      role: parsed.role,
     },
   });
 }
@@ -91,6 +127,7 @@ export async function ensureProfile(userId: string, email?: string) {
           fullName: parsed.fullName,
           department: parsed.department,
           year: parsed.year,
+          role: parsed.role,
         },
       });
     }
@@ -457,8 +494,8 @@ export async function getDashboardData(userId: string, email?: string) {
     console.warn("portalSetting lookup fallback:", err);
   }
 
-  const [isAdmin, profiles, memberships, teams, invitations] = await Promise.all([
-    parsed.isAdmin || checkIsAdmin(activeUserId, userEmail),
+  const [userRole, profiles, memberships, teams, invitations] = await Promise.all([
+    getUserRole(activeUserId, userEmail),
     prisma.profile.findMany({ orderBy: { fullName: "asc" } }),
     prisma.teamMember.findMany(),
     prisma.team.findMany({ orderBy: { createdAt: "desc" } }),
@@ -466,8 +503,10 @@ export async function getDashboardData(userId: string, email?: string) {
   ]);
 
   const registrationsOpen = regSetting ? regSetting.value === "true" : true;
+  const isAdmin = userRole === "admin";
+  const isEvaluator = userRole === "evaluator";
 
-  return { profile, isAdmin, profiles, memberships, teams, invitations, registrationsOpen };
+  return { profile, isAdmin, isEvaluator, role: userRole, profiles, memberships, teams, invitations, registrationsOpen };
 }
 
 export async function getAdminDashboardData() {
@@ -494,7 +533,34 @@ export async function getAdminDashboardData() {
   const profile = await ensureProfile(session.id, session.email);
   const registrationsOpen = regSetting ? regSetting.value === "true" : true;
 
-  return { profile, isAdmin: true, profiles, memberships, teams, invitations, registrationsOpen };
+  return { profile, isAdmin: true, role: "admin" as const, profiles, memberships, teams, invitations, registrationsOpen };
+}
+
+export async function getEvaluatorDashboardData() {
+  const session = await requireAuth();
+  const isEvaluator = await checkIsEvaluator(session.id, session.email);
+  if (!isEvaluator) {
+    throw new Error("Unauthorized: evaluator access required.");
+  }
+
+  let regSetting = null;
+  try {
+    regSetting = await prisma.portalSetting.findUnique({ where: { key: "registrations_open" } });
+  } catch (err) {
+    console.warn("portalSetting lookup fallback:", err);
+  }
+
+  const [profiles, memberships, teams, invitations] = await Promise.all([
+    prisma.profile.findMany({ orderBy: { fullName: "asc" } }),
+    prisma.teamMember.findMany(),
+    prisma.team.findMany({ orderBy: { createdAt: "desc" } }),
+    prisma.invitation.findMany({ orderBy: { createdAt: "desc" } }),
+  ]);
+
+  const profile = await ensureProfile(session.id, session.email);
+  const registrationsOpen = regSetting ? regSetting.value === "true" : true;
+
+  return { profile, isEvaluator: true, role: profile.role || "evaluator", profiles, memberships, teams, invitations, registrationsOpen };
 }
 
 export async function toggleRegistrations(open: boolean) {

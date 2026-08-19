@@ -38,30 +38,40 @@ export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   // Unauthenticated user protection
-  if (!user && (pathname.startsWith("/dashboard") || pathname.startsWith("/admin"))) {
+  if (!user && (pathname.startsWith("/dashboard") || pathname.startsWith("/admin") || pathname.startsWith("/evaluator"))) {
     const url = request.nextUrl.clone();
     url.pathname = "/auth";
     return NextResponse.redirect(url);
   }
 
-  // Pure environment-variable based role routing
+  // Database-driven role routing (Admin / Evaluator / Student)
   if (user) {
-    const userEmail = (user.email ?? "").trim().toLowerCase();
-    const adminEmail = (process.env.NEXT_PUBLIC_ADMIN_EMAIL || "").trim().toLowerCase();
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
 
-    const isAdmin = adminEmail !== "" && userEmail === adminEmail;
+    const role = (profile?.role ?? "student").toLowerCase();
 
-    // Student attempting to access admin page -> redirect to student dashboard
-    if (pathname.startsWith("/admin") && !isAdmin) {
+    // Admin attempting to access student dashboard or evaluator page -> redirect to admin console
+    if ((pathname.startsWith("/dashboard") || pathname.startsWith("/evaluator")) && role === "admin") {
       const url = request.nextUrl.clone();
-      url.pathname = "/dashboard";
+      url.pathname = "/admin";
       return NextResponse.redirect(url);
     }
 
-    // Admin attempting to access student page -> redirect to admin console
-    if (pathname.startsWith("/dashboard") && isAdmin) {
+    // Evaluator attempting to access admin page or student dashboard -> redirect to evaluator portal
+    if ((pathname.startsWith("/admin") || pathname.startsWith("/dashboard")) && role === "evaluator") {
       const url = request.nextUrl.clone();
-      url.pathname = "/admin";
+      url.pathname = "/evaluator";
+      return NextResponse.redirect(url);
+    }
+
+    // Student attempting to access admin or evaluator page -> redirect to student dashboard
+    if ((pathname.startsWith("/admin") || pathname.startsWith("/evaluator")) && role === "student") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/dashboard";
       return NextResponse.redirect(url);
     }
   }
@@ -70,5 +80,12 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard", "/dashboard/:path*", "/admin", "/admin/:path*"],
+  matcher: [
+    "/dashboard",
+    "/dashboard/:path*",
+    "/admin",
+    "/admin/:path*",
+    "/evaluator",
+    "/evaluator/:path*",
+  ],
 };
