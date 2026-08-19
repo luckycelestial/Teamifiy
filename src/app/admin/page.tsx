@@ -668,7 +668,6 @@ function AdminContent() {
                     <tr>
                       <th className="px-4 py-3">Student Name</th>
                       <th className="px-4 py-3">Dept & Year</th>
-                      <th className="px-4 py-3">Gender</th>
                       <th className="px-4 py-3">Phone</th>
                       <th className="px-4 py-3">Team Status</th>
                       <th className="px-4 py-3">Role</th>
@@ -677,7 +676,7 @@ function AdminContent() {
                   <tbody className="divide-y divide-border">
                     {filteredStudents.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+                        <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
                           No registered students match this filter.
                         </td>
                       </tr>
@@ -691,7 +690,7 @@ function AdminContent() {
                               <div className="text-xs text-muted-foreground font-normal">{s.email}</div>
                             </td>
                             <td className="px-4 py-3">
-                              {s.department ? `${s.department} ${s.year ? `(Yr ${s.year})` : ""}` : "—"}
+                              {s.department ? `${s.department}${s.year ? ` · ${toRomanYear(s.year)}` : ""}` : "—"}
                             </td>
                             <td className="px-4 py-3 font-mono text-xs">{s.phone || "—"}</td>
                             <td className="px-4 py-3">
