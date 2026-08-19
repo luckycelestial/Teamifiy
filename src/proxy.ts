@@ -48,12 +48,26 @@ export async function proxy(request: NextRequest) {
   if (user) {
     const userEmail = (user.email ?? "").trim().toLowerCase();
     
-    // Look up profile by user.id OR user.email directly
-    const { data: profileData } = await supabase
-      .from("profiles")
-      .select("role, id")
-      .or(`id.eq.${user.id},email.eq.${userEmail}`)
-      .maybeSingle();
+    // Look up profile by email first, then by id
+    let profileData: { role: string; id: string } | null = null;
+
+    if (userEmail) {
+      const { data: pByEmail } = await supabase
+        .from("profiles")
+        .select("role, id")
+        .eq("email", userEmail)
+        .limit(1);
+      if (pByEmail && pByEmail.length > 0) profileData = pByEmail[0]!;
+    }
+
+    if (!profileData && user.id) {
+      const { data: pById } = await supabase
+        .from("profiles")
+        .select("role, id")
+        .eq("id", user.id)
+        .limit(1);
+      if (pById && pById.length > 0) profileData = pById[0]!;
+    }
 
     const role = (profileData?.role ?? "student").toLowerCase();
 
@@ -80,24 +94,17 @@ export async function proxy(request: NextRequest) {
 
     // Team Leader access control: Only Team Leaders can access student dashboard
     if (pathname.startsWith("/dashboard") && role === "student") {
-      // Check if user ID is a team leader
-      const { data: isLeaderMem } = await supabase
+      const targetIds = Array.from(new Set([user.id, profileData?.id].filter(Boolean))) as string[];
+
+      // Check if any target ID is a team leader in team_members
+      const { data: leaderMems } = await supabase
         .from("team_members")
         .select("id")
-        .eq("user_id", user.id)
+        .in("user_id", targetIds)
         .eq("is_leader", true)
-        .maybeSingle();
+        .limit(1);
 
-      // Check if user email belongs to a team leader profile
-      const targetProfileId = profileData?.id;
-      const { data: leaderProfile } = !isLeaderMem && targetProfileId ? await supabase
-        .from("team_members")
-        .select("id")
-        .eq("user_id", targetProfileId)
-        .eq("is_leader", true)
-        .maybeSingle() : { data: null };
-
-      if (!isLeaderMem && !leaderProfile) {
+      if (!leaderMems || leaderMems.length === 0) {
         const url = request.nextUrl.clone();
         url.pathname = "/auth";
         url.searchParams.set("error", "leader_only");

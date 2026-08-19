@@ -309,6 +309,29 @@ export async function getDashboardData(userId: string, email?: string) {
     },
   });
 
+  if (profile && profile.id !== activeUserId && userEmail) {
+    const oldId = profile.id;
+    try {
+      await prisma.$transaction([
+        prisma.teamMember.updateMany({
+          where: { userId: oldId },
+          data: { userId: activeUserId },
+        }),
+        prisma.team.updateMany({
+          where: { leaderId: oldId },
+          data: { leaderId: activeUserId },
+        }),
+        prisma.profile.update({
+          where: { id: oldId },
+          data: { id: activeUserId, email: userEmail },
+        }),
+      ]);
+      profile.id = activeUserId;
+    } catch (err) {
+      console.warn("Could not sync profile ID to activeUserId:", err);
+    }
+  }
+
   if (!profile) {
     profile = await prisma.profile.create({
       data: {
