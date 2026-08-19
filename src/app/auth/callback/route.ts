@@ -29,16 +29,32 @@ export async function GET(request: Request) {
 
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error && data?.user) {
-      const userEmail = (data.user.email ?? "").trim().toLowerCase();
+      const userEmail = (data.user.email ?? "").trim().toLowerCase().replace(/\s+/g, "");
 
       // Look up user role directly from database
-      const { data: profile } = userEmail ? await supabase
-        .from("profiles")
-        .select("role")
-        .or(`id.eq.${data.user.id},email.eq.${userEmail}`)
-        .maybeSingle() : { data: null };
+      let role = "student";
 
-      const role = (profile?.role ?? "student").toLowerCase();
+      if (userEmail) {
+        const { data: pByEmail } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("email", userEmail)
+          .limit(1);
+        if (pByEmail && pByEmail.length > 0 && pByEmail[0]?.role) {
+          role = pByEmail[0].role.toLowerCase();
+        }
+      }
+
+      if (role === "student" && data.user.id) {
+        const { data: pById } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", data.user.id)
+          .limit(1);
+        if (pById && pById.length > 0 && pById[0]?.role) {
+          role = pById[0].role.toLowerCase();
+        }
+      }
 
       if (!next) {
         if (role === "admin") {

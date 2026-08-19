@@ -46,7 +46,7 @@ export async function proxy(request: NextRequest) {
 
   // Database-driven role routing (Admin / Evaluator / Student)
   if (user) {
-    const userEmail = (user.email ?? "").trim().toLowerCase();
+    const userEmail = (user.email ?? "").trim().toLowerCase().replace(/\s+/g, "");
     
     // Look up profile by email first, then by id
     let profileData: { role: string; id: string } | null = null;
