@@ -17,6 +17,9 @@ function AuthContent() {
     if (searchParams.get("error") === "invalid_domain") {
       toast.error("Access restricted: Only official @sece.ac.in college Google accounts are allowed.");
     }
+    if (searchParams.get("error") === "leader_only") {
+      toast.error("Team Leader Access Only: Only designated SIH Team Leaders are authorized to sign in.");
+    }
   }, [searchParams]);
 
   async function google() {
@@ -81,6 +84,17 @@ function AuthContent() {
               Use your official Sri Eshwar Google account (<strong>@sece.ac.in</strong>) to access your dashboard.
             </p>
           </div>
+
+          {searchParams.get("error") === "leader_only" && (
+            <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-xs text-amber-900 shadow-2xs">
+              <p className="font-bold text-amber-950 flex items-center gap-1.5">
+                <span>⚠️</span> Team Leader Access Only
+              </p>
+              <p className="mt-1 leading-relaxed text-amber-800">
+                Only registered <strong>SIH Team Leaders</strong> are authorized to sign in. Team members do not need to sign in — your Team Leader manages your team details.
+              </p>
+            </div>
+          )}
 
           <div className="rounded-xl border border-border bg-card p-5 sm:p-6 shadow-sm space-y-4">
             <Button

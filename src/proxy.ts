@@ -74,6 +74,44 @@ export async function proxy(request: NextRequest) {
       url.pathname = "/dashboard";
       return NextResponse.redirect(url);
     }
+
+    // Team Leader access control: Only Team Leaders can access student dashboard
+    if (pathname.startsWith("/dashboard") && role === "student") {
+      const userEmail = (user.email ?? "").trim().toLowerCase();
+
+      // Check if user ID is a team leader
+      const { data: isLeaderMem } = await supabase
+        .from("team_members")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("is_leader", true)
+        .maybeSingle();
+
+      // Check if user email belongs to a team leader profile
+      const { data: leaderProfile } = userEmail ? await supabase
+        .from("profiles")
+        .select("id")
+        .eq("email", userEmail)
+        .maybeSingle() : { data: null };
+
+      let isLeaderByEmail = false;
+      if (leaderProfile?.id) {
+        const { data: mem } = await supabase
+          .from("team_members")
+          .select("id")
+          .eq("user_id", leaderProfile.id)
+          .eq("is_leader", true)
+          .maybeSingle();
+        isLeaderByEmail = Boolean(mem);
+      }
+
+      if (!isLeaderMem && !isLeaderByEmail) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/auth";
+        url.searchParams.set("error", "leader_only");
+        return NextResponse.redirect(url);
+      }
+    }
   }
 
   return response;

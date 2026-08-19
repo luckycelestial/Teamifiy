@@ -50,6 +50,33 @@ export async function checkIsEvaluator(userId: string, email?: string) {
   return role === "evaluator" || role === "admin";
 }
 
+export async function checkIsTeamLeader(userId: string, email?: string) {
+  const role = await getUserRole(userId, email);
+  if (role === "admin" || role === "evaluator") return true;
+
+  if (userId) {
+    const team = await prisma.team.findFirst({
+      where: { leaderId: userId },
+    });
+    if (team) return true;
+  }
+
+  if (email) {
+    const cleanEmail = email.trim().toLowerCase();
+    const profile = await prisma.profile.findUnique({
+      where: { email: cleanEmail },
+      include: {
+        memberships: {
+          where: { isLeader: true },
+        },
+      },
+    });
+    if (profile && profile.memberships.length > 0) return true;
+  }
+
+  return false;
+}
+
 export async function updateUserRole(targetUserId: string, newRole: "admin" | "evaluator" | "student") {
   const session = await requireAuth();
   const isAdmin = await checkIsAdmin(session.id, session.email);
