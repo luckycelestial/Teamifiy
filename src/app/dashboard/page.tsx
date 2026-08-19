@@ -34,6 +34,7 @@ export default function DashboardPage() {
           setDataLoading(false);
         }
       } catch (err: unknown) {
+        console.error("Dashboard error:", err);
         if (isMounted) {
           setError(err instanceof Error ? err.message : "Failed to load dashboard.");
           setDataLoading(false);
@@ -84,27 +85,27 @@ export default function DashboardPage() {
   const profiles = data?.profiles ?? [];
   const memberships = (data?.memberships ?? []).map((m: any) => ({
     id: m.id,
-    team_id: m.teamId,
-    user_id: m.userId,
-    is_leader: m.isLeader,
-    joined_at: m.joinedAt.toISOString(),
+    team_id: m.teamId || m.team_id,
+    user_id: m.userId || m.user_id,
+    is_leader: m.isLeader ?? m.is_leader ?? false,
+    joined_at: typeof m.joinedAt === "string" ? m.joinedAt : m.joinedAt?.toISOString?.() || new Date().toISOString(),
   }));
 
   const teams = (data?.teams ?? []).map((t: any) => ({
     id: t.id,
     name: t.name,
-    problem_statement: t.problemStatement,
+    problem_statement: t.problemStatement || t.problem_statement,
     category: t.category,
-    leader_id: t.leaderId,
-    status: t.status as "forming" | "submitted" | "approved" | "rejected" | "locked",
-    created_at: t.createdAt.toISOString(),
+    leader_id: t.leaderId || t.leader_id,
+    status: (t.status || "submitted") as "forming" | "submitted" | "approved" | "rejected" | "locked",
+    created_at: typeof t.createdAt === "string" ? t.createdAt : t.createdAt?.toISOString?.() || new Date().toISOString(),
   }));
 
   const formattedProfile = profile
     ? {
         id: profile.id,
-        full_name: profile.fullName,
-        email: profile.email,
+        full_name: profile.fullName || profile.full_name || "",
+        email: profile.email || user.email,
         department: profile.department,
         year: profile.year,
         phone: profile.phone,
@@ -120,7 +121,7 @@ export default function DashboardPage() {
 
   const formattedProfiles = profiles.map((p: any) => ({
     id: p.id,
-    full_name: p.fullName,
+    full_name: p.fullName || p.full_name || "",
     email: p.email,
     department: p.department,
     year: p.year,
@@ -128,7 +129,8 @@ export default function DashboardPage() {
   }));
 
   const registrationsOpen = data?.registrationsOpen ?? true;
-  const myMembership = memberships.find((m: any) => m.user_id === user.id);
+  const activeUserId = profile?.id || user.id;
+  const myMembership = memberships.find((m: any) => m.user_id === user.id || m.user_id === activeUserId);
   const myTeam = myMembership ? teams.find((t: any) => t.id === myMembership.team_id) : undefined;
   const myTeamMembers = myTeam ? memberships.filter((m: any) => m.team_id === myTeam.id) : [];
 
@@ -153,12 +155,12 @@ export default function DashboardPage() {
             team={myTeam}
             members={myTeamMembers}
             profiles={formattedProfiles}
-            currentUserId={user.id}
+            currentUserId={activeUserId}
             registrationsOpen={registrationsOpen}
           />
         ) : (
-          <div className="p-8 text-center bg-background border border-border rounded-xl">
-            <h3 className="font-bold text-lg">No Team Assigned</h3>
+          <div className="p-8 text-center bg-background border border-border rounded-xl shadow-xs">
+            <h3 className="font-bold text-lg text-foreground">No Team Assigned</h3>
             <p className="text-sm text-muted-foreground mt-1">
               Your profile is registered as a student. Only designated Team Leaders manage team submissions.
             </p>
