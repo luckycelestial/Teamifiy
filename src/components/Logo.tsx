@@ -14,7 +14,7 @@ export function Logo({ tone = "dark", className = "" }: LogoProps) {
   const eyebrow = tone === "light" ? "text-white/85" : "text-navy/80";
 
   return (
-    <span className={`inline-flex select-none flex-col leading-none ${className}`}>
+    <span className={`inline-flex shrink-0 w-fit select-none flex-col leading-none ${className}`}>
       <span
         className={`text-[0.5em] font-extrabold uppercase tracking-[0.28em] ${eyebrow}`}
       >
@@ -37,7 +37,8 @@ function Bulb() {
     <svg
       viewBox="0 0 24 32"
       aria-hidden="true"
-      className="mx-[0.02em] h-[1.02em] w-[0.72em] shrink-0 translate-y-[0.02em]"
+      style={{ width: "0.72em", height: "1.02em", minWidth: "0.72em", display: "inline-block" }}
+      className="mx-[0.02em] shrink-0 translate-y-[0.02em]"
     >
       <path
         d="M12 1.5c5.5 0 9.6 4.1 9.6 9.3 0 4.2-2.9 7.1-5 9.6-.9 1-1.4 1.8-1.6 2.6H9c-.2-.8-.7-1.6-1.6-2.6-2.1-2.5-5-5.4-5-9.6C2.4 5.6 6.5 1.5 12 1.5Z"

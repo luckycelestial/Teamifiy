@@ -1,20 +1,77 @@
-import { useState } from "react";
+"use client";
+
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import type { Invitation, Membership, Profile, Team } from "@/lib/portal";
 import {
-  TEAM_SIZE,
-  teamIssues,
-  useCancelInvite,
-  useDisbandTeam,
-  useLeaveTeam,
-  useRemoveMember,
-  useSendInvite,
-  useUpdateTeam,
-} from "@/lib/portal";
+  sendInviteByEmail,
+  revokeInvite,
+  leaveTeam,
+  removeMember,
+  disbandTeam,
+  updateTeamStatus,
+} from "@/app/actions/portal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/portal/StatusBadge";
+import { toRomanYear } from "@/lib/utils";
+import { StudentContactModal, StudentModalData } from "@/components/portal/StudentContactModal";
+
+export const TEAM_SIZE = 6;
+
+export type Profile = {
+  id: string;
+  full_name: string;
+  email: string;
+  department: string | null;
+  year: number | null;
+  gender: string | null;
+  phone: string | null;
+};
+
+export type Team = {
+  id: string;
+  name: string;
+  problem_statement: string | null;
+  category: string | null;
+  leader_id: string;
+  status: "forming" | "submitted" | "approved" | "rejected" | "locked";
+  admin_note: string | null;
+  created_at: string;
+};
+
+export type Membership = {
+  id: string;
+  team_id: string;
+  user_id: string;
+  is_leader: boolean;
+  joined_at: string;
+};
+
+export type Invitation = {
+  id: string;
+  team_id: string;
+  invitee_id: string;
+  inviter_id: string;
+  status: "pending" | "accepted" | "declined" | "cancelled";
+  message: string | null;
+  created_at: string;
+};
+
+function teamIssues(members: Profile[]): string[] {
+  const issues: string[] = [];
+  if (members.length !== TEAM_SIZE) {
+    issues.push(`${members.length}/${TEAM_SIZE} members — a SIH team needs exactly ${TEAM_SIZE}.`);
+  }
+  if (!members.some((m) => (m.gender ?? "").toLowerCase() === "female")) {
+    issues.push("At least one female member is required.");
+  }
+  if (members.some((m) => !m.department)) {
+    issues.push("Every member must have a valid department.");
+  }
+  return issues;
+}
 
 type Props = {
   team: Team;
@@ -23,6 +80,7 @@ type Props = {
   teamInvites: Invitation[];
   allMemberships: Membership[];
   currentUserId: string;
+  registrationsOpen?: boolean;
 };
 
 export function TeamPanel({
@@ -32,43 +90,59 @@ export function TeamPanel({
   teamInvites,
   allMemberships,
   currentUserId,
+  registrationsOpen = true,
 }: Props) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const isLeader = team.leader_id === currentUserId;
-  const open = team.status === "forming" || team.status === "rejected";
+  const open = (team.status === "forming" || team.status === "rejected") && registrationsOpen;
   const byId = new Map(profiles.map((p) => [p.id, p]));
   const memberProfiles = members
     .map((m) => byId.get(m.user_id))
     .filter((p): p is Profile => Boolean(p));
   const issues = teamIssues(memberProfiles);
 
-  const invite = useSendInvite();
-  const cancelInvite = useCancelInvite();
-  const removeMember = useRemoveMember();
-  const leave = useLeaveTeam();
-  const disband = useDisbandTeam();
-  const updateTeam = useUpdateTeam();
-
-  const [search, setSearch] = useState("");
-  const takenIds = new Set(allMemberships.map((m) => m.user_id));
-  const invitedIds = new Set(teamInvites.filter((i) => i.status === "pending").map((i) => i.invitee_id));
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [selectedStudent, setSelectedStudent] = useState<StudentModalData | null>(null);
   const pendingInvites = teamInvites.filter((i) => i.status === "pending");
-
-  const candidates = profiles
-    .filter((p) => !takenIds.has(p.id) && !invitedIds.has(p.id))
-    .filter((p) => {
-      const q = search.trim().toLowerCase();
-      if (!q) return false;
-      return (
-        p.full_name.toLowerCase().includes(q) ||
-        (p.roll_no ?? "").toLowerCase().includes(q) ||
-        (p.email ?? "").toLowerCase().includes(q) ||
-        (p.department ?? "").toLowerCase().includes(q) ||
-        p.skills.some((s) => s.toLowerCase().includes(q))
-      );
-    })
-    .slice(0, 8);
-
   const slotsLeft = TEAM_SIZE - members.length;
+  
+  const handleSendEmailInvite = () => {
+    if (!inviteEmail.trim()) {
+      toast.error("Please enter a valid student email address.");
+      return;
+    }
+    startTransition(async () => {
+      try {
+        const res = await sendInviteByEmail({
+          teamId: team.id,
+          inviterId: currentUserId,
+          inviteeEmail: inviteEmail,
+        });
+        if (res && !res.success) {
+          toast.error(res.error || "Failed to send invite.");
+          return;
+        }
+        toast.success(`Invitation sent to ${inviteEmail.trim()}!`);
+        setInviteEmail("");
+        window.location.reload();
+      } catch (err: unknown) {
+        toast.error(err instanceof Error ? err.message : "Failed to send invite.");
+      }
+    });
+  };
+
+  const handleRevokeInvite = (inviteId: string) => {
+    startTransition(async () => {
+      try {
+        await revokeInvite(inviteId);
+        toast.success("Invitation revoked.");
+        window.location.reload();
+      } catch (err: unknown) {
+        toast.error(err instanceof Error ? err.message : "Failed to revoke invite.");
+      }
+    });
+  };
 
   return (
     <div className="space-y-5">
@@ -77,218 +151,216 @@ export function TeamPanel({
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <CardTitle className="text-xl">{team.name}</CardTitle>
-              <CardDescription>
-                {team.category || "No theme set"}
-                {team.problem_statement ? ` · ${team.problem_statement}` : ""}
-              </CardDescription>
+              <CardDescription>Team Roster ({members.length}/{TEAM_SIZE} members)</CardDescription>
             </div>
             <StatusBadge status={team.status} />
           </div>
         </CardHeader>
-        <CardContent className="space-y-5">
-          <div className="flex items-center gap-3">
-            <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full rounded-full bg-navy transition-all"
-                style={{ width: `${(members.length / TEAM_SIZE) * 100}%` }}
-              />
+        <CardContent className="space-y-4">
+          {team.problem_statement && (
+            <div className="rounded-md bg-surface-muted p-3 text-sm">
+              <p className="font-semibold">Problem Statement</p>
+              <p className="text-muted-foreground">{team.problem_statement}</p>
             </div>
-            <span className="text-sm font-semibold">
-              {members.length}/{TEAM_SIZE}
-            </span>
-          </div>
-
-          {team.admin_note && (
-            <p className="rounded-md border border-border bg-muted p-3 text-sm">
-              <strong>Reviewer note:</strong> {team.admin_note}
-            </p>
+          )}
+          {team.category && (
+            <p className="text-xs text-muted-foreground">Category: {team.category}</p>
           )}
 
-          <ul className="divide-y divide-border rounded-lg border border-border">
-            {members.map((m) => {
-              const p = byId.get(m.user_id);
-              return (
-                <li key={m.id} className="flex flex-wrap items-center justify-between gap-2 p-3">
-                  <div>
-                    <p className="font-semibold">
-                      {p?.full_name || "Student"}
-                      {m.is_leader && (
-                        <span className="ml-2 rounded bg-accent px-1.5 py-0.5 text-[11px] font-bold uppercase text-accent-foreground">
-                          Lead
-                        </span>
-                      )}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {[p?.roll_no, p?.department, p?.year ? `Year ${p.year}` : null, p?.gender]
-                        .filter(Boolean)
-                        .join(" · ") || "Profile incomplete"}
-                    </p>
-                  </div>
-                  {isLeader && open && !m.is_leader && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() =>
-                        removeMember.mutate(m.id, {
-                          onSuccess: () => toast.success("Member removed."),
-                          onError: (e) => toast.error(e.message),
-                        })
-                      }
+          <div className="space-y-2">
+            <p className="text-sm font-semibold">Members</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {members.map((m) => {
+                const p = memberProfiles.find((mp) => mp.id === m.user_id);
+                return (
+                  <div
+                    key={m.id}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border p-3"
+                  >
+                    <div
+                      onClick={() => p && setSelectedStudent({
+                        fullName: p.full_name,
+                        email: p.email,
+                        department: p.department,
+                        year: p.year,
+                        gender: p.gender,
+                        phone: p.phone,
+                        isLeader: m.is_leader,
+                      })}
+                      title="Click to view contact details"
+                      className="cursor-pointer group flex-1"
                     >
-                      Remove
-                    </Button>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
+                      <p className="font-semibold group-hover:text-navy group-hover:underline transition-colors flex items-center gap-1">
+                        {p?.full_name || "Student"}
+                        {m.is_leader && (
+                          <span className="ml-1 rounded-full bg-gold/20 px-2 py-0.5 text-xs font-bold text-navy">
+                            Lead
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {[p?.department, toRomanYear(p?.year), p?.gender]
+                          .filter(Boolean)
+                          .join(" · ") || "Profile incomplete"}
+                      </p>
+                    </div>
+                    {isLeader && open && !m.is_leader && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={isPending}
+                        onClick={() => {
+                          startTransition(async () => {
+                            try {
+                              await removeMember(m.id);
+                              toast.success("Member removed.");
+                              router.refresh();
+                            } catch (err: unknown) {
+                              toast.error(err instanceof Error ? err.message : "Failed to remove member.");
+                            }
+                          });
+                        }}
+                      >
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
 
           {issues.length > 0 ? (
-            <div className="rounded-lg border border-warning/40 bg-warning/10 p-4">
-              <p className="text-sm font-bold">This team is not valid yet</p>
-              <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
+            <div className="rounded-md border border-warning/40 bg-warning/10 p-3 text-sm">
+              <p className="font-semibold text-amber-900">Validation Status</p>
+              <ul className="mt-1 space-y-1 text-xs text-amber-800">
                 {issues.map((i) => (
                   <li key={i}>• {i}</li>
                 ))}
               </ul>
             </div>
           ) : (
-            <p className="rounded-lg border border-success/40 bg-success/10 p-4 text-sm font-semibold text-foreground">
-              All SIH rules satisfied — ready to submit.
-            </p>
+            <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+              ✓ All SIH team rules met! Ready for submission.
+            </div>
           )}
 
-          <div className="flex flex-wrap gap-2">
-            {isLeader && open && (
-              <Button
-                disabled={issues.length > 0 || updateTeam.isPending}
-                onClick={() =>
-                  updateTeam.mutate(
-                    { teamId: team.id, values: { status: "submitted" } },
-                    {
-                      onSuccess: () => toast.success("Team submitted for review."),
-                      onError: (e) => toast.error(e.message),
-                    },
-                  )
-                }
-              >
-                Submit team for review
-              </Button>
-            )}
-            {isLeader && open && (
-              <Button
-                variant="outline"
-                onClick={() => {
-                  if (!confirm("Disband this team? All members will be released.")) return;
-                  disband.mutate(team.id, {
-                    onSuccess: () => toast.success("Team disbanded."),
-                    onError: (e) => toast.error(e.message),
-                  });
-                }}
-              >
-                Disband team
-              </Button>
-            )}
-            {!isLeader && open && (
-              <Button
-                variant="outline"
-                onClick={() => {
-                  if (!confirm("Leave this team?")) return;
-                  leave.mutate(currentUserId, {
-                    onSuccess: () => toast.success("You left the team."),
-                    onError: (e) => toast.error(e.message),
-                  });
-                }}
-              >
-                Leave team
-              </Button>
-            )}
-            {!open && (
-              <p className="text-sm text-muted-foreground">
-                This team is {team.status} — contact the Innovation Studio for any change.
-              </p>
-            )}
-          </div>
+          {open && (
+            <div className="flex flex-wrap items-center gap-3 pt-2">
+              {isLeader && team.status === "forming" && (
+                <Button
+                  disabled={isPending || issues.length > 0}
+                  onClick={() => {
+                    startTransition(async () => {
+                      try {
+                        await updateTeamStatus(team.id, "submitted");
+                        toast.success("Team submitted for CFI review!");
+                        router.refresh();
+                      } catch (err: unknown) {
+                        toast.error(err instanceof Error ? err.message : "Failed to submit.");
+                      }
+                    });
+                  }}
+                >
+                  Submit Team
+                </Button>
+              )}
+              {isLeader ? (
+                <Button
+                  variant="destructive"
+                  disabled={isPending}
+                  onClick={() => {
+                    startTransition(async () => {
+                      try {
+                        await disbandTeam(team.id);
+                        toast.success("Team disbanded.");
+                        router.refresh();
+                      } catch (err: unknown) {
+                        toast.error(err instanceof Error ? err.message : "Failed to disband.");
+                      }
+                    });
+                  }}
+                >
+                  Disband Team
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  disabled={isPending}
+                  onClick={() => {
+                    startTransition(async () => {
+                      try {
+                        await leaveTeam(currentUserId);
+                        toast.success("You left the team.");
+                        router.refresh();
+                      } catch (err: unknown) {
+                        toast.error(err instanceof Error ? err.message : "Failed to leave.");
+                      }
+                    });
+                  }}
+                >
+                  Leave Team
+                </Button>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
       {isLeader && open && (
         <Card className="shadow-card-soft">
           <CardHeader>
-            <CardTitle className="text-base">Invite students</CardTitle>
+            <CardTitle className="text-lg">Invite Teammate by Email</CardTitle>
             <CardDescription>
-              {slotsLeft > 0
-                ? `${slotsLeft} slot${slotsLeft > 1 ? "s" : ""} left. Search by name, roll number, department or skill.`
-                : "Your team is full."}
+              Enter the official college email (@sece.ac.in) of a registered student to send them an invitation.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Input
-              value={search}
-              placeholder="Search students…"
-              disabled={slotsLeft <= 0}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            <ul className="space-y-2">
-              {search.trim() && candidates.length === 0 && (
-                <li className="text-sm text-muted-foreground">
-                  No available students match that search. Students already in a team are hidden.
-                </li>
-              )}
-              {candidates.map((p) => (
-                <li
-                  key={p.id}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border p-3"
-                >
-                  <div>
-                    <p className="font-semibold">{p.full_name || p.email}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {[p.roll_no, p.department, p.gender].filter(Boolean).join(" · ")}
-                      {p.skills.length > 0 ? ` · ${p.skills.join(", ")}` : ""}
-                    </p>
-                  </div>
-                  <Button
-                    size="sm"
-                    disabled={invite.isPending}
-                    onClick={() =>
-                      invite.mutate(
-                        { teamId: team.id, inviteeId: p.id, inviterId: currentUserId },
-                        {
-                          onSuccess: () => toast.success(`Invite sent to ${p.full_name}.`),
-                          onError: (e) => toast.error(e.message),
-                        },
-                      )
-                    }
-                  >
-                    Invite
-                  </Button>
-                </li>
-              ))}
-            </ul>
+            <div className="flex items-center gap-2">
+              <Input
+                type="email"
+                value={inviteEmail}
+                placeholder="student.name2025aids@sece.ac.in"
+                disabled={slotsLeft <= 0 || isPending}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleSendEmailInvite();
+                  }
+                }}
+              />
+              <Button
+                disabled={slotsLeft <= 0 || isPending || !inviteEmail.trim()}
+                onClick={handleSendEmailInvite}
+              >
+                {isPending ? "Sending..." : "Send Invite"}
+              </Button>
+            </div>
 
             {pendingInvites.length > 0 && (
-              <div>
-                <p className="text-sm font-semibold">Pending invites sent</p>
-                <ul className="mt-2 space-y-2">
+              <div className="pt-2">
+                <p className="text-sm font-semibold text-foreground mb-2">Sent Pending Invites</p>
+                <ul className="space-y-2">
                   {pendingInvites.map((i) => {
                     const p = byId.get(i.invitee_id);
                     return (
                       <li
                         key={i.id}
-                        className="flex items-center justify-between gap-2 rounded-lg bg-muted px-3 py-2 text-sm"
+                        className="flex items-center justify-between gap-2 rounded-lg border border-border bg-surface-muted/50 px-3.5 py-2.5 text-sm"
                       >
-                        <span>{p?.full_name || "Student"}</span>
+                        <div>
+                          <p className="font-semibold text-xs">{p?.full_name || "Student"}</p>
+                          <p className="text-xs text-muted-foreground">{p?.email || i.invitee_id}</p>
+                        </div>
                         <Button
                           size="sm"
-                          variant="ghost"
-                          onClick={() =>
-                            cancelInvite.mutate(i.id, {
-                              onSuccess: () => toast.success("Invite cancelled."),
-                              onError: (e) => toast.error(e.message),
-                            })
-                          }
+                          variant="outline"
+                          disabled={isPending}
+                          onClick={() => handleRevokeInvite(i.id)}
+                          className="h-7 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
                         >
-                          Cancel
+                          Revoke
                         </Button>
                       </li>
                     );
@@ -299,6 +371,11 @@ export function TeamPanel({
           </CardContent>
         </Card>
       )}
+
+      <StudentContactModal
+        student={selectedStudent}
+        onClose={() => setSelectedStudent(null)}
+      />
     </div>
   );
 }

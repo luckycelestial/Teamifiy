@@ -1,0 +1,81 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Profile {
+  id          String       @id
+  email       String       @unique
+  fullName    String       @map("full_name")
+  department  String?
+  year        Int?
+  gender      String?
+  phone       String?
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  memberships TeamMember[]
+  invitations Invitation[] @relation("ReceivedInvitations")
+
+  @@map("profiles")
+}
+
+model Team {
+  id               String       @id @default(uuid())
+  name             String
+  problemStatement String?      @map("problem_statement")
+  category         String?
+  leaderId         String       @map("leader_id")
+  status           String       @default("forming")
+  adminNote        String?      @map("admin_note")
+  createdAt        DateTime     @default(now()) @map("created_at")
+
+  members     TeamMember[]
+  invitations Invitation[]
+
+  @@map("teams")
+}
+
+model TeamMember {
+  id       String   @id @default(uuid())
+  teamId   String   @map("team_id")
+  userId   String   @map("user_id")
+  isLeader Boolean  @default(false) @map("is_leader")
+  joinedAt DateTime @default(now()) @map("joined_at")
+
+  team Team    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId])
+  @@map("team_members")
+}
+
+model Invitation {
+  id          String    @id @default(uuid())
+  teamId      String    @map("team_id")
+  inviteeId   String    @map("invitee_id")
+  inviterId   String    @map("inviter_id")
+  status      String    @default("pending")
+  message     String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  respondedAt DateTime? @map("responded_at")
+
+  team    Team    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  invitee Profile @relation("ReceivedInvitations", fields: [inviteeId], references: [id], onDelete: Cascade)
+
+  @@map("invitations")
+}
+
+model PortalSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("portal_settings")
+}
+

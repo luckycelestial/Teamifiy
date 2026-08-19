@@ -137,6 +137,11 @@
     border-color: var(--color-border);
   }
 
+  svg {
+    display: inline-block;
+    vertical-align: middle;
+  }
+
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
