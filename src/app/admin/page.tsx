@@ -22,7 +22,7 @@ const TEAM_SIZE = 6;
 type ProfileItem = {
   id: string;
   fullName: string;
-  email: string;
+  email: string | null;
   department: string | null;
   year: number | null;
   phone: string | null;
@@ -130,7 +130,7 @@ function AdminContent() {
     if (!q) return true;
     return (
       p.fullName.toLowerCase().includes(q) ||
-      p.email.toLowerCase().includes(q) ||
+      (p.email ?? "").toLowerCase().includes(q) ||
       (p.department ?? "").toLowerCase().includes(q) ||
       (p.phone ?? "").toLowerCase().includes(q)
     );
@@ -547,7 +547,7 @@ function AdminContent() {
                                   key={m.id}
                                   onClick={() => setSelectedStudent({
                                     fullName: m.fullName,
-                                    email: m.email,
+                                    email: m.email ?? undefined,
                                     department: m.department,
                                     year: m.year,
                                     phone: m.phone,

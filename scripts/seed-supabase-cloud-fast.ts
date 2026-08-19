@@ -58,8 +58,9 @@ async function main() {
 
     if (!leaderEmail) return;
 
-    if (!profilesMap.has(leaderEmail)) {
-      profilesMap.set(leaderEmail, {
+    const leaderKey = leaderEmail;
+    if (!profilesMap.has(leaderKey)) {
+      profilesMap.set(leaderKey, {
         id: `user_${leaderRoll || i}_${i}`,
         email: leaderEmail,
         full_name: leaderName || "Team Leader",
@@ -71,7 +72,7 @@ async function main() {
       });
     }
 
-    const activeLeader = profilesMap.get(leaderEmail);
+    const activeLeader = profilesMap.get(leaderKey);
     const teamId = `team_${i + 1}`;
     teams.push({
       id: teamId,
@@ -98,12 +99,12 @@ async function main() {
 
       if (!mName && !mRoll) continue;
 
-      const mEmail = mRoll ? `${mRoll.toLowerCase()}@sece.ac.in` : `member_${i}_${m}@sece.ac.in`;
+      const memberKey = mRoll ? `roll_${mRoll}` : `row_${i}_m_${m}`;
 
-      if (!profilesMap.has(mEmail)) {
-        profilesMap.set(mEmail, {
+      if (!profilesMap.has(memberKey)) {
+        profilesMap.set(memberKey, {
           id: `user_${mRoll || i}_${m}_${i}`,
-          email: mEmail,
+          email: null, // No placeholder email! Real email set when student signs in
           full_name: mName || `Member ${m}`,
           roll_number: mRoll || null,
           department: mDept || null,
@@ -112,7 +113,7 @@ async function main() {
         });
       }
 
-      const p = profilesMap.get(mEmail);
+      const p = profilesMap.get(memberKey);
       if (!membershipsMap.has(p.id)) {
         membershipsMap.set(p.id, {
           id: `mem_${p.id}`,
@@ -127,7 +128,7 @@ async function main() {
   const profiles = Array.from(profilesMap.values());
   const memberships = Array.from(membershipsMap.values());
 
-  console.log(`Uploading ${profiles.length} profiles, ${teams.length} teams, ${memberships.length} memberships to Supabase Cloud...`);
+  console.log(`Uploading ${profiles.length} profiles (clean real emails / null placeholders), ${teams.length} teams, ${memberships.length} memberships...`);
 
   function chunk<T>(arr: T[], size: number): T[][] {
     const c: T[][] = [];
@@ -135,37 +136,15 @@ async function main() {
     return c;
   }
 
-  // 1. Upsert Profiles by email
+  // 1. Upsert Profiles by id
   const profileChunks = chunk(profiles, 100);
   for (let idx = 0; idx < profileChunks.length; idx++) {
-    const { error } = await supabase.from("profiles").upsert(profileChunks[idx]!, { onConflict: "email" });
+    const { error } = await supabase.from("profiles").upsert(profileChunks[idx]!, { onConflict: "id" });
     if (error) console.error(`Error in profiles batch ${idx + 1}:`, error.message);
     else console.log(`Profiles batch ${idx + 1}/${profileChunks.length} uploaded!`);
   }
 
-  // 2. Fetch all profiles back to match IDs accurately
-  const { data: dbProfiles, error: fetchErr } = await supabase.from("profiles").select("id, email");
-  if (fetchErr) console.error("Fetch profiles error:", fetchErr.message);
-
-  const emailToIdMap = new Map<string, string>();
-  (dbProfiles || []).forEach((p: any) => emailToIdMap.set(p.email, p.id));
-
-  // Remap team leader_id and member user_id to actual DB IDs
-  teams.forEach((t) => {
-    const p = profiles.find((prof) => prof.id === t.leader_id);
-    if (p && emailToIdMap.has(p.email)) {
-      t.leader_id = emailToIdMap.get(p.email);
-    }
-  });
-
-  memberships.forEach((m) => {
-    const p = profiles.find((prof) => prof.id === m.user_id);
-    if (p && emailToIdMap.has(p.email)) {
-      m.user_id = emailToIdMap.get(p.email);
-    }
-  });
-
-  // 3. Upsert Teams
+  // 2. Upsert Teams
   const teamChunks = chunk(teams, 100);
   for (let idx = 0; idx < teamChunks.length; idx++) {
     const { error } = await supabase.from("teams").upsert(teamChunks[idx]!, { onConflict: "id" });
@@ -173,7 +152,7 @@ async function main() {
     else console.log(`Teams batch ${idx + 1}/${teamChunks.length} uploaded!`);
   }
 
-  // 4. Upsert Memberships
+  // 3. Upsert Memberships
   const memChunks = chunk(memberships, 100);
   for (let idx = 0; idx < memChunks.length; idx++) {
     const { error } = await supabase.from("team_members").upsert(memChunks[idx]!, { onConflict: "user_id" });
@@ -181,7 +160,7 @@ async function main() {
     else console.log(`Members batch ${idx + 1}/${memChunks.length} uploaded!`);
   }
 
-  console.log("Supabase Cloud seeding completed 100% successfully!");
+  console.log("Supabase Cloud seeding completed 100% cleanly without synthetic emails!");
 }
 
 main().catch((e) => {

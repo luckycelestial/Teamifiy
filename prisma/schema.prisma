@@ -10,7 +10,7 @@ datasource db {
 
 model Profile {
   id          String       @id
-  email       String       @unique
+  email       String?      @unique
   fullName    String       @map("full_name")
   department  String?
   year        Int?
