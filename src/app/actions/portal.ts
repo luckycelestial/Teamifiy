@@ -1,7 +1,6 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { parseSeceEmail } from "@/lib/email-parser";
 import { requireAuth } from "@/lib/supabase-server";
 
 const TEAM_SIZE = 6;
@@ -34,7 +33,6 @@ export async function getUserRole(userId: string, email?: string): Promise<"admi
     if (profile && profile.role) {
       return profile.role as "admin" | "evaluator" | "student";
     }
-    return parseSeceEmail(cleanEmail).role;
   }
   return "student";
 }
@@ -115,7 +113,6 @@ export async function updateProfile(userId: string, data: Partial<ProfileData>) 
     });
   }
 
-  const parsed = parseSeceEmail(data.email ?? "");
   return await prisma.profile.create({
     data: {
       id: userId,
@@ -124,7 +121,7 @@ export async function updateProfile(userId: string, data: Partial<ProfileData>) 
       department: data.department,
       year: data.year,
       phone: data.phone,
-      role: parsed.role,
+      role: (data.email ?? "").trim().toLowerCase() === "cfi@sece.ac.in" ? "admin" : "student",
     },
   });
 }
@@ -132,28 +129,27 @@ export async function updateProfile(userId: string, data: Partial<ProfileData>) 
 export async function ensureProfile(userId: string, email?: string) {
   let profile = await prisma.profile.findUnique({ where: { id: userId } });
   if (!profile) {
-    const userEmail = email ?? `${userId}@sece.ac.in`;
-    const parsed = parseSeceEmail(userEmail);
-    const existingByEmail = await prisma.profile.findFirst({
-      where: { email: userEmail },
-    });
-    if (existingByEmail) {
-      profile = await prisma.profile.update({
-        where: { id: existingByEmail.id },
-        data: { id: userId },
+    const userEmail = email ? email.trim().toLowerCase() : "";
+    if (userEmail) {
+      const existingByEmail = await prisma.profile.findFirst({
+        where: { email: userEmail },
       });
-    } else {
-      profile = await prisma.profile.create({
-        data: {
-          id: userId,
-          email: userEmail,
-          fullName: parsed.fullName,
-          department: parsed.department,
-          year: parsed.year,
-          role: parsed.role,
-        },
-      });
+      if (existingByEmail) {
+        profile = await prisma.profile.update({
+          where: { id: existingByEmail.id },
+          data: { id: userId },
+        });
+        return profile;
+      }
     }
+    profile = await prisma.profile.create({
+      data: {
+        id: userId,
+        email: userEmail,
+        fullName: userEmail ? userEmail.split("@")[0]! : "User",
+        role: userEmail === "cfi@sece.ac.in" ? "admin" : "student",
+      },
+    });
   }
   return profile;
 }
@@ -266,15 +262,11 @@ export async function rolloverAcademicYear(input: {
   const isAdmin = await checkIsAdmin(session.id, session.email);
   if (!isAdmin) throw new Error("Unauthorized: admin access required.");
 
-  const adminEmail = (process.env.NEXT_PUBLIC_ADMIN_EMAIL || "").trim().toLowerCase();
   const profiles = await prisma.profile.findMany();
   let updatedCount = 0;
 
   for (const p of profiles) {
-    if (
-      p.email.trim().toLowerCase() === adminEmail ||
-      p.email.toLowerCase().startsWith("admin")
-    ) {
+    if (p.role === "admin" || p.role === "evaluator") {
       continue;
     }
 
@@ -283,15 +275,6 @@ export async function rolloverAcademicYear(input: {
         await prisma.profile.update({
           where: { id: p.id },
           data: { year: p.year + 1 },
-        });
-        updatedCount++;
-      }
-    } else if (input.mode === "set_base_year" && input.baseYear) {
-      const parsed = parseSeceEmail(p.email, input.baseYear);
-      if (parsed.year !== null && !parsed.isAdmin) {
-        await prisma.profile.update({
-          where: { id: p.id },
-          data: { year: parsed.year },
         });
         updatedCount++;
       }
@@ -315,13 +298,15 @@ export async function getDashboardData(userId: string, email?: string) {
     console.warn("[getDashboardData] requireAuth warning, using client identity:", err);
   }
 
-  const userEmail = (activeUserEmail && activeUserEmail.trim() !== "")
-    ? activeUserEmail.trim()
-    : `${activeUserId}@sece.ac.in`;
-  const parsed = parseSeceEmail(userEmail);
+  const userEmail = activeUserEmail.trim().toLowerCase();
 
   let profile = await prisma.profile.findFirst({
-    where: { OR: [{ id: activeUserId }, { email: userEmail }] },
+    where: {
+      OR: [
+        { id: activeUserId },
+        ...(userEmail ? [{ email: userEmail }] : []),
+      ],
+    },
   });
 
   if (!profile) {
@@ -329,35 +314,10 @@ export async function getDashboardData(userId: string, email?: string) {
       data: {
         id: activeUserId,
         email: userEmail,
-        fullName: parsed.fullName,
-        department: parsed.department,
-        year: parsed.year,
-        phone: null,
+        fullName: userEmail ? userEmail.split("@")[0]! : "User",
+        role: userEmail === "cfi@sece.ac.in" ? "admin" : "student",
       },
     });
-  } else {
-    const updateData: {
-      fullName?: string;
-      department?: string;
-      year?: number | null;
-      email?: string;
-    } = {};
-    if (!profile.fullName && parsed.fullName) updateData.fullName = parsed.fullName;
-    if (!profile.department && parsed.department)
-      updateData.department = parsed.department;
-    if (profile.year === null && parsed.year !== null) updateData.year = parsed.year;
-    if (profile.email !== userEmail) {
-      const existingEmailOwner = await prisma.profile.findUnique({
-        where: { email: userEmail },
-      });
-      if (!existingEmailOwner) updateData.email = userEmail;
-    }
-    if (Object.keys(updateData).length > 0) {
-      profile = await prisma.profile.update({
-        where: { id: profile.id },
-        data: updateData,
-      });
-    }
   }
 
   let regSetting = null;
