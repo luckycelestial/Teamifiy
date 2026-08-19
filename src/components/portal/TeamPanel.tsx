@@ -180,7 +180,7 @@ export function TeamPanel({
             </div>
           </div>
 
-          {issues.length > 0 ? (
+          {issues.length > 0 && (
             <div className="rounded-md border border-warning/40 bg-warning/10 p-3 text-sm">
               <p className="font-semibold text-amber-900">Validation Status</p>
               <ul className="mt-1 space-y-1 text-xs text-amber-800">
@@ -188,10 +188,6 @@ export function TeamPanel({
                   <li key={i}>• {i}</li>
                 ))}
               </ul>
-            </div>
-          ) : (
-            <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
-              ✓ All SIH team rules met! Ready for submission.
             </div>
           )}
 

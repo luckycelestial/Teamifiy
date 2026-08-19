@@ -142,11 +142,9 @@ function AdminContent() {
   ).length;
 
   const stats = [
-    { label: "Teams", value: allTeams.length, onClick: () => { setActiveTab("teams"); setFilterUnassigned(false); } },
     { label: "Valid teams", value: valid, onClick: () => { setActiveTab("teams"); setFilterUnassigned(false); } },
-    { label: "Needs fixing", value: allTeams.length - valid, onClick: () => { setActiveTab("teams"); setFilterUnassigned(false); } },
     { label: "Students registered", value: allProfiles.length, onClick: () => { setActiveTab("students"); setFilterUnassigned(false); } },
-    { label: "Without a team", value: unassignedCount, onClick: () => { setActiveTab("students"); setFilterUnassigned(true); } },
+    { label: "Faculties", value: unassignedCount, onClick: () => { setActiveTab("students"); setFilterUnassigned(true); } },
   ];
 
   async function handleSetStatus(teamId: string, status: "approved" | "rejected" | "locked" | "forming") {
