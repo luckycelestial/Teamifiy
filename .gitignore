@@ -15,6 +15,7 @@ dist-ssr
 *.tsbuildinfo
 *.sql
 sql_batches.json
+all_mcp_queries.json
 .vinxi
 .tanstack/**
 .nitro
