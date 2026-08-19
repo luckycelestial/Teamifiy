@@ -37,7 +37,7 @@ async function main() {
   const membershipsMap = new Map<string, any>();
 
   // Admin profile
-  profilesMap.set("cfi@sece.ac.in", {
+  profilesMap.set("admin_cfi_coordinator", {
     id: "admin_cfi_coordinator",
     email: "cfi@sece.ac.in",
     full_name: "Centre for Innovation Coordinator",
@@ -58,10 +58,10 @@ async function main() {
 
     if (!leaderEmail) return;
 
-    const leaderKey = leaderEmail;
+    const leaderKey = `leader_${leaderEmail}`;
     if (!profilesMap.has(leaderKey)) {
       profilesMap.set(leaderKey, {
-        id: `user_${leaderRoll || i}_${i}`,
+        id: `user_leader_${i}_${leaderRoll || "roll"}`,
         email: leaderEmail,
         full_name: leaderName || "Team Leader",
         roll_number: leaderRoll || null,
@@ -82,14 +82,12 @@ async function main() {
       status: "submitted",
     });
 
-    if (!membershipsMap.has(activeLeader.id)) {
-      membershipsMap.set(activeLeader.id, {
-        id: `mem_${activeLeader.id}`,
-        team_id: teamId,
-        user_id: activeLeader.id,
-        is_leader: true,
-      });
-    }
+    membershipsMap.set(activeLeader.id, {
+      id: `mem_${activeLeader.id}`,
+      team_id: teamId,
+      user_id: activeLeader.id,
+      is_leader: true,
+    });
 
     for (let m = 2; m <= 6; m++) {
       const mName = cleanString(r[`Student Name (Member ${m})`]);
@@ -99,36 +97,32 @@ async function main() {
 
       if (!mName && !mRoll) continue;
 
-      const memberKey = mRoll ? `roll_${mRoll}` : `row_${i}_m_${m}`;
+      const memberKey = `row_${i}_m_${m}`;
 
-      if (!profilesMap.has(memberKey)) {
-        profilesMap.set(memberKey, {
-          id: `user_${mRoll || i}_${m}_${i}`,
-          email: null, // No placeholder email! Real email set when student signs in
-          full_name: mName || `Member ${m}`,
-          roll_number: mRoll || null,
-          department: mDept || null,
-          year: mYear,
-          role: "student",
-        });
-      }
+      profilesMap.set(memberKey, {
+        id: `user_row_${i}_m_${m}`,
+        email: null, // Real email set when student signs in
+        full_name: mName || `Member ${m}`,
+        roll_number: mRoll || null,
+        department: mDept || null,
+        year: mYear,
+        role: "student",
+      });
 
       const p = profilesMap.get(memberKey);
-      if (!membershipsMap.has(p.id)) {
-        membershipsMap.set(p.id, {
-          id: `mem_${p.id}`,
-          team_id: teamId,
-          user_id: p.id,
-          is_leader: false,
-        });
-      }
+      membershipsMap.set(p.id, {
+        id: `mem_${p.id}`,
+        team_id: teamId,
+        user_id: p.id,
+        is_leader: false,
+      });
     }
   });
 
   const profiles = Array.from(profilesMap.values());
   const memberships = Array.from(membershipsMap.values());
 
-  console.log(`Uploading ${profiles.length} profiles (clean real emails / null placeholders), ${teams.length} teams, ${memberships.length} memberships...`);
+  console.log(`Uploading ${profiles.length} profiles, ${teams.length} teams, ${memberships.length} memberships...`);
 
   function chunk<T>(arr: T[], size: number): T[][] {
     const c: T[][] = [];
@@ -160,7 +154,7 @@ async function main() {
     else console.log(`Members batch ${idx + 1}/${memChunks.length} uploaded!`);
   }
 
-  console.log("Supabase Cloud seeding completed 100% cleanly without synthetic emails!");
+  console.log("Supabase Cloud seeding completed 100% cleanly!");
 }
 
 main().catch((e) => {
