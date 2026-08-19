@@ -4,8 +4,6 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
-  sendInviteByEmail,
-  revokeInvite,
   leaveTeam,
   removeMember,
   disbandTeam,
@@ -26,7 +24,6 @@ export type Profile = {
   email: string;
   department: string | null;
   year: number | null;
-  gender: string | null;
   phone: string | null;
 };
 
@@ -37,7 +34,6 @@ export type Team = {
   category: string | null;
   leader_id: string;
   status: "forming" | "submitted" | "approved" | "rejected" | "locked";
-  admin_note: string | null;
   created_at: string;
 };
 
@@ -64,9 +60,6 @@ function teamIssues(members: Profile[]): string[] {
   if (members.length !== TEAM_SIZE) {
     issues.push(`${members.length}/${TEAM_SIZE} members — a SIH team needs exactly ${TEAM_SIZE}.`);
   }
-  if (!members.some((m) => (m.gender ?? "").toLowerCase() === "female")) {
-    issues.push("At least one female member is required.");
-  }
   if (members.some((m) => !m.department)) {
     issues.push("Every member must have a valid department.");
   }
@@ -77,8 +70,8 @@ type Props = {
   team: Team;
   members: Membership[];
   profiles: Profile[];
-  teamInvites: Invitation[];
-  allMemberships: Membership[];
+  teamInvites?: Invitation[];
+  allMemberships?: Membership[];
   currentUserId: string;
   registrationsOpen?: boolean;
 };
@@ -87,8 +80,6 @@ export function TeamPanel({
   team,
   members,
   profiles,
-  teamInvites,
-  allMemberships,
   currentUserId,
   registrationsOpen = true,
 }: Props) {
@@ -102,47 +93,7 @@ export function TeamPanel({
     .filter((p): p is Profile => Boolean(p));
   const issues = teamIssues(memberProfiles);
 
-  const [inviteEmail, setInviteEmail] = useState("");
   const [selectedStudent, setSelectedStudent] = useState<StudentModalData | null>(null);
-  const pendingInvites = teamInvites.filter((i) => i.status === "pending");
-  const slotsLeft = TEAM_SIZE - members.length;
-  
-  const handleSendEmailInvite = () => {
-    if (!inviteEmail.trim()) {
-      toast.error("Please enter a valid student email address.");
-      return;
-    }
-    startTransition(async () => {
-      try {
-        const res = await sendInviteByEmail({
-          teamId: team.id,
-          inviterId: currentUserId,
-          inviteeEmail: inviteEmail,
-        });
-        if (res && !res.success) {
-          toast.error(res.error || "Failed to send invite.");
-          return;
-        }
-        toast.success(`Invitation sent to ${inviteEmail.trim()}!`);
-        setInviteEmail("");
-        window.location.reload();
-      } catch (err: unknown) {
-        toast.error(err instanceof Error ? err.message : "Failed to send invite.");
-      }
-    });
-  };
-
-  const handleRevokeInvite = (inviteId: string) => {
-    startTransition(async () => {
-      try {
-        await revokeInvite(inviteId);
-        toast.success("Invitation revoked.");
-        window.location.reload();
-      } catch (err: unknown) {
-        toast.error(err instanceof Error ? err.message : "Failed to revoke invite.");
-      }
-    });
-  };
 
   return (
     <div className="space-y-5">
@@ -183,7 +134,6 @@ export function TeamPanel({
                         email: p.email,
                         department: p.department,
                         year: p.year,
-                        gender: p.gender,
                         phone: p.phone,
                         isLeader: m.is_leader,
                       })}
@@ -199,7 +149,7 @@ export function TeamPanel({
                         )}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {[p?.department, toRomanYear(p?.year), p?.gender]
+                        {[p?.department, toRomanYear(p?.year)]
                           .filter(Boolean)
                           .join(" · ") || "Profile incomplete"}
                       </p>
@@ -306,71 +256,6 @@ export function TeamPanel({
           )}
         </CardContent>
       </Card>
-
-      {isLeader && open && (
-        <Card className="shadow-card-soft">
-          <CardHeader>
-            <CardTitle className="text-lg">Invite Teammate by Email</CardTitle>
-            <CardDescription>
-              Enter the official college email (@sece.ac.in) of a registered student to send them an invitation.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Input
-                type="email"
-                value={inviteEmail}
-                placeholder="student.name2025aids@sece.ac.in"
-                disabled={slotsLeft <= 0 || isPending}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleSendEmailInvite();
-                  }
-                }}
-              />
-              <Button
-                disabled={slotsLeft <= 0 || isPending || !inviteEmail.trim()}
-                onClick={handleSendEmailInvite}
-              >
-                {isPending ? "Sending..." : "Send Invite"}
-              </Button>
-            </div>
-
-            {pendingInvites.length > 0 && (
-              <div className="pt-2">
-                <p className="text-sm font-semibold text-foreground mb-2">Sent Pending Invites</p>
-                <ul className="space-y-2">
-                  {pendingInvites.map((i) => {
-                    const p = byId.get(i.invitee_id);
-                    return (
-                      <li
-                        key={i.id}
-                        className="flex items-center justify-between gap-2 rounded-lg border border-border bg-surface-muted/50 px-3.5 py-2.5 text-sm"
-                      >
-                        <div>
-                          <p className="font-semibold text-xs">{p?.full_name || "Student"}</p>
-                          <p className="text-xs text-muted-foreground">{p?.email || i.invitee_id}</p>
-                        </div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={isPending}
-                          onClick={() => handleRevokeInvite(i.id)}
-                          className="h-7 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
-                        >
-                          Revoke
-                        </Button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
 
       <StudentContactModal
         student={selectedStudent}

@@ -14,7 +14,6 @@ model Profile {
   fullName    String       @map("full_name")
   department  String?
   year        Int?
-  gender      String?
   phone       String?
   role        String       @default("student")
   rollNumber  String?      @map("roll_number")
@@ -22,7 +21,6 @@ model Profile {
   updatedAt   DateTime     @updatedAt @map("updated_at")
 
   memberships TeamMember[]
-  invitations Invitation[] @relation("ReceivedInvitations")
 
   @@map("profiles")
 }
@@ -33,12 +31,10 @@ model Team {
   problemStatement String?      @map("problem_statement")
   category         String?
   leaderId         String       @map("leader_id")
-  status           String       @default("forming")
-  adminNote        String?      @map("admin_note")
+  status           String       @default("submitted")
   createdAt        DateTime     @default(now()) @map("created_at")
 
-  members     TeamMember[]
-  invitations Invitation[]
+  members TeamMember[]
 
   @@map("teams")
 }
@@ -57,22 +53,6 @@ model TeamMember {
   @@map("team_members")
 }
 
-model Invitation {
-  id          String    @id @default(uuid())
-  teamId      String    @map("team_id")
-  inviteeId   String    @map("invitee_id")
-  inviterId   String    @map("inviter_id")
-  status      String    @default("pending")
-  message     String?
-  createdAt   DateTime  @default(now()) @map("created_at")
-  respondedAt DateTime? @map("responded_at")
-
-  team    Team    @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  invitee Profile @relation("ReceivedInvitations", fields: [inviteeId], references: [id], onDelete: Cascade)
-
-  @@map("invitations")
-}
-
 model PortalSetting {
   key       String   @id
   value     String
@@ -80,4 +60,3 @@ model PortalSetting {
 
   @@map("portal_settings")
 }
-

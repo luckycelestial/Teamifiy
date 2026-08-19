@@ -25,7 +25,6 @@ type ProfileItem = {
   email: string;
   department: string | null;
   year: number | null;
-  gender: string | null;
   phone: string | null;
   role: string;
 };
@@ -34,9 +33,6 @@ function teamIssues(members: ProfileItem[]): string[] {
   const issues: string[] = [];
   if (members.length !== TEAM_SIZE) {
     issues.push(`${members.length}/${TEAM_SIZE} members — a SIH team needs exactly ${TEAM_SIZE}.`);
-  }
-  if (!members.some((m) => (m.gender ?? "").toLowerCase() === "female")) {
-    issues.push("At least one female member is required.");
   }
   if (members.some((m) => !m.department)) {
     issues.push("Every member must have a valid department.");
@@ -362,7 +358,6 @@ function AdminContent() {
         s.fullName.toUpperCase(),
         toRomanYear(s.year) || "-- NA --",
         formatDept(s.department),
-        s.gender || "-- NA --",
         s.phone || "-- NA --",
         s.email || "-- NA --",
         team ? team.name.toUpperCase() : "UNASSIGNED",
@@ -555,19 +550,12 @@ function AdminContent() {
                                     email: m.email,
                                     department: m.department,
                                     year: m.year,
-                                    gender: m.gender,
                                     phone: m.phone,
                                   })}
                                   title="Click to view contact details"
                                   className="inline-flex items-center gap-1 rounded-full border border-border bg-surface-muted px-2.5 py-0.5 text-[11px] font-medium text-foreground cursor-pointer hover:border-navy/40 hover:bg-navy/5 transition-all shadow-2xs"
                                 >
-                                  <span
-                                    className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${
-                                      (m.gender ?? "").toLowerCase() === "female"
-                                        ? "bg-pink-500"
-                                        : "bg-blue-500"
-                                    }`}
-                                  />
+                                  <span className="h-1.5 w-1.5 rounded-full flex-shrink-0 bg-blue-500" />
                                   {m.fullName}
                                   {m.department && (
                                     <span className="text-muted-foreground">· {m.department}</span>
@@ -680,7 +668,6 @@ function AdminContent() {
                             <td className="px-4 py-3">
                               {s.department ? `${s.department} ${s.year ? `(Yr ${s.year})` : ""}` : "—"}
                             </td>
-                            <td className="px-4 py-3">{s.gender || "—"}</td>
                             <td className="px-4 py-3 font-mono text-xs">{s.phone || "—"}</td>
                             <td className="px-4 py-3">
                               {team ? (

@@ -12,7 +12,6 @@ type ProfileData = {
   fullName: string;
   department: string | null;
   year: number | null;
-  gender: string | null;
   phone: string | null;
 };
 
@@ -93,7 +92,6 @@ export async function updateUserRole(targetUserId: string, newRole: "admin" | "e
 // ─── Profile mutations ────────────────────────────────────────────────────────
 
 export async function updateProfile(userId: string, data: Partial<ProfileData>) {
-  // Verify the caller owns this profile
   const session = await requireAuth();
   if (session.id !== userId) {
     throw new Error("Unauthorized: you can only update your own profile.");
@@ -112,7 +110,6 @@ export async function updateProfile(userId: string, data: Partial<ProfileData>) 
         fullName: data.fullName ?? existing.fullName,
         department: data.department ?? existing.department,
         year: data.year ?? existing.year,
-        gender: data.gender ?? existing.gender,
         phone: data.phone ?? existing.phone,
       },
     });
@@ -126,7 +123,6 @@ export async function updateProfile(userId: string, data: Partial<ProfileData>) 
       fullName: data.fullName ?? "",
       department: data.department,
       year: data.year,
-      gender: data.gender,
       phone: data.phone,
       role: parsed.role,
     },
@@ -200,7 +196,7 @@ export async function createTeam(input: {
         problemStatement: input.problemStatement,
         category: input.category,
         leaderId: input.leaderId,
-        status: "forming",
+        status: "submitted",
       },
     });
 
@@ -210,151 +206,6 @@ export async function createTeam(input: {
 
     return team;
   });
-}
-
-export async function sendInviteByEmail(input: {
-  teamId: string;
-  inviterId: string;
-  inviteeEmail: string;
-}) {
-  try {
-    const session = await requireAuth();
-    if (session.id !== input.inviterId) {
-      return { success: false, error: "Unauthorized: you can only send invites as yourself." };
-    }
-    await checkRegistrationsOpen(session.id, session.email);
-
-    const cleanEmail = input.inviteeEmail.trim().toLowerCase();
-    if (!cleanEmail) return { success: false, error: "Please enter a student email address." };
-
-    const invitee = await prisma.profile.findFirst({ where: { email: cleanEmail } });
-    if (!invitee) {
-      return {
-        success: false,
-        error: `No registered student found for '${cleanEmail}'. Ask them to sign in to the portal first before inviting.`,
-      };
-    }
-    if (invitee.id === input.inviterId) {
-      return { success: false, error: "You cannot invite yourself to your team." };
-    }
-
-    const existingMembership = await prisma.teamMember.findFirst({
-      where: { userId: invitee.id },
-    });
-    if (existingMembership) {
-      return { success: false, error: `${invitee.fullName} is already a member of a team.` };
-    }
-
-    const existingInvite = await prisma.invitation.findFirst({
-      where: { teamId: input.teamId, inviteeId: invitee.id, status: "pending" },
-    });
-    if (existingInvite) {
-      return { success: false, error: `An invitation has already been sent to ${invitee.fullName}.` };
-    }
-
-    await prisma.invitation.create({
-      data: {
-        teamId: input.teamId,
-        inviterId: input.inviterId,
-        inviteeId: invitee.id,
-        status: "pending",
-      },
-    });
-
-    return { success: true };
-  } catch (err: unknown) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : "Failed to send invite.",
-    };
-  }
-}
-
-export async function revokeInvite(inviteId: string) {
-  const session = await requireAuth();
-  await checkRegistrationsOpen(session.id, session.email);
-
-  // Verify caller is the team leader for this invite
-  const invite = await prisma.invitation.findUnique({
-    where: { id: inviteId },
-    include: { team: true },
-  });
-  if (!invite) throw new Error("Invitation not found.");
-  if (invite.team.leaderId !== session.id) {
-    throw new Error("Unauthorized: only the team leader can revoke invites.");
-  }
-
-  return await prisma.invitation.update({
-    where: { id: inviteId },
-    data: { status: "cancelled" },
-  });
-}
-
-export async function acceptInvite(invitationId: string, userId: string) {
-  const session = await requireAuth();
-  if (session.id !== userId) {
-    throw new Error("Unauthorized: you can only accept your own invitations.");
-  }
-  await checkRegistrationsOpen(session.id, session.email);
-
-  await ensureProfile(userId);
-  return await prisma.$transaction(async (tx) => {
-    const invite = await tx.invitation.findUnique({
-      where: { id: invitationId },
-      include: { team: { include: { members: true } } },
-    });
-
-    if (!invite || invite.inviteeId !== userId) {
-      throw new Error("Invalid invitation.");
-    }
-    if (invite.team.members.length >= TEAM_SIZE) {
-      throw new Error("Team has already reached max size.");
-    }
-
-    await tx.teamMember.create({
-      data: { teamId: invite.teamId, userId, isLeader: false },
-    });
-    await tx.invitation.update({
-      where: { id: invitationId },
-      data: { status: "accepted", respondedAt: new Date() },
-    });
-    await tx.invitation.updateMany({
-      where: { inviteeId: userId, status: "pending" },
-      data: { status: "cancelled" },
-    });
-  });
-}
-
-export async function declineInvite(invitationId: string) {
-  const session = await requireAuth();
-  await checkRegistrationsOpen(session.id, session.email);
-
-  const invite = await prisma.invitation.findUnique({ where: { id: invitationId } });
-  if (!invite) throw new Error("Invitation not found.");
-  if (invite.inviteeId !== session.id) {
-    throw new Error("Unauthorized: you can only decline your own invitations.");
-  }
-
-  return await prisma.invitation.update({
-    where: { id: invitationId },
-    data: { status: "declined", respondedAt: new Date() },
-  });
-}
-
-export async function cancelInvite(invitationId: string) {
-  const session = await requireAuth();
-  await checkRegistrationsOpen(session.id, session.email);
-
-  const invite = await prisma.invitation.findUnique({
-    where: { id: invitationId },
-    include: { team: true },
-  });
-  if (!invite) throw new Error("Invitation not found.");
-  if (invite.team.leaderId !== session.id) {
-    throw new Error("Unauthorized: only the team leader can cancel invites.");
-  }
-
-  return await prisma.invitation.delete({ where: { id: invitationId } });
 }
 
 export async function leaveTeam(userId: string) {
@@ -370,7 +221,6 @@ export async function removeMember(memberId: string) {
   const session = await requireAuth();
   await checkRegistrationsOpen(session.id, session.email);
 
-  // Verify caller is the team leader
   const member = await prisma.teamMember.findUnique({ where: { id: memberId } });
   if (!member) throw new Error("Member not found.");
 
@@ -451,12 +301,9 @@ export async function rolloverAcademicYear(input: {
   return { success: true, count: updatedCount };
 }
 
-// ─── Dashboard data (read, called on page load) ───────────────────────────────
+// ─── Dashboard data ───────────────────────────────────────────────────────────
 
 export async function getDashboardData(userId: string, email?: string) {
-  const t0 = performance.now();
-  console.log(`[PERF] getDashboardData START for ${userId} (${email})`);
-
   let activeUserId = userId;
   let activeUserEmail = email ?? "";
 
@@ -485,7 +332,6 @@ export async function getDashboardData(userId: string, email?: string) {
         fullName: parsed.fullName,
         department: parsed.department,
         year: parsed.year,
-        gender: null,
         phone: null,
       },
     });
@@ -521,19 +367,18 @@ export async function getDashboardData(userId: string, email?: string) {
     console.warn("portalSetting lookup fallback:", err);
   }
 
-  const [userRole, profiles, memberships, teams, invitations] = await Promise.all([
+  const [userRole, profiles, memberships, teams] = await Promise.all([
     getUserRole(activeUserId, userEmail),
     prisma.profile.findMany({ orderBy: { fullName: "asc" } }),
     prisma.teamMember.findMany(),
     prisma.team.findMany({ orderBy: { createdAt: "desc" } }),
-    prisma.invitation.findMany({ orderBy: { createdAt: "desc" } }),
   ]);
 
   const registrationsOpen = regSetting ? regSetting.value === "true" : true;
   const isAdmin = userRole === "admin";
   const isEvaluator = userRole === "evaluator";
 
-  return { profile, isAdmin, isEvaluator, role: userRole, profiles, memberships, teams, invitations, registrationsOpen };
+  return { profile, isAdmin, isEvaluator, role: userRole, profiles, memberships, teams, invitations: [], registrationsOpen };
 }
 
 export async function getAdminDashboardData() {
@@ -550,17 +395,16 @@ export async function getAdminDashboardData() {
     console.warn("portalSetting lookup fallback:", err);
   }
 
-  const [profiles, memberships, teams, invitations] = await Promise.all([
+  const [profiles, memberships, teams] = await Promise.all([
     prisma.profile.findMany({ orderBy: { fullName: "asc" } }),
     prisma.teamMember.findMany(),
     prisma.team.findMany({ orderBy: { createdAt: "desc" } }),
-    prisma.invitation.findMany({ orderBy: { createdAt: "desc" } }),
   ]);
 
   const profile = await ensureProfile(session.id, session.email);
   const registrationsOpen = regSetting ? regSetting.value === "true" : true;
 
-  return { profile, isAdmin: true, role: "admin" as const, profiles, memberships, teams, invitations, registrationsOpen };
+  return { profile, isAdmin: true, role: "admin" as const, profiles, memberships, teams, invitations: [], registrationsOpen };
 }
 
 export async function getEvaluatorDashboardData() {
@@ -577,17 +421,16 @@ export async function getEvaluatorDashboardData() {
     console.warn("portalSetting lookup fallback:", err);
   }
 
-  const [profiles, memberships, teams, invitations] = await Promise.all([
+  const [profiles, memberships, teams] = await Promise.all([
     prisma.profile.findMany({ orderBy: { fullName: "asc" } }),
     prisma.teamMember.findMany(),
     prisma.team.findMany({ orderBy: { createdAt: "desc" } }),
-    prisma.invitation.findMany({ orderBy: { createdAt: "desc" } }),
   ]);
 
   const profile = await ensureProfile(session.id, session.email);
   const registrationsOpen = regSetting ? regSetting.value === "true" : true;
 
-  return { profile, isEvaluator: true, role: profile.role || "evaluator", profiles, memberships, teams, invitations, registrationsOpen };
+  return { profile, isEvaluator: true, role: profile.role || "evaluator", profiles, memberships, teams, invitations: [], registrationsOpen };
 }
 
 export async function toggleRegistrations(open: boolean) {

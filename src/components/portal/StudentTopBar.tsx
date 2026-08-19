@@ -48,7 +48,6 @@ export function StudentTopBar({ profile }: { profile: ProfileData }) {
           fullName: profile.full_name,
           department: profile.department,
           year: profile.year,
-          gender,
           phone,
         });
         toast.success("Profile saved successfully!");

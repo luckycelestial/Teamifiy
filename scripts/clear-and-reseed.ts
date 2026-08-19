@@ -18,7 +18,6 @@ function cleanString(val: unknown): string {
 
 async function main() {
   console.log("1. Clearing database tables completely...");
-  await prisma.invitation.deleteMany();
   await prisma.teamMember.deleteMany();
   await prisma.team.deleteMany();
   await prisma.profile.deleteMany();

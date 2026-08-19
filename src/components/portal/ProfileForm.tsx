@@ -45,7 +45,6 @@ export function ProfileForm({ profile }: { profile: Profile }) {
           fullName: values.full_name.trim().slice(0, 80),
           department: values.department.trim().slice(0, 60),
           year: values.year ? Number(values.year) : null,
-          gender: values.gender || null,
           phone: values.phone.trim().slice(0, 20),
         });
         toast.success("Profile saved.");

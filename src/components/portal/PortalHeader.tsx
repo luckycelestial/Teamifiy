@@ -27,7 +27,6 @@ export type ProfileData = {
   email: string;
   department: string | null;
   year: number | null;
-  gender: string | null;
   phone: string | null;
 };
 
@@ -46,9 +45,8 @@ export function PortalHeader({ isAdmin = false, isEvaluator = false, role, email
 
   const [isPending, startTransition] = useTransition();
   const [isEditing, setIsEditing] = useState(
-    !effectiveIsAdmin && !effectiveIsEvaluator && !!profile && (!profile.gender || !profile.phone)
+    !effectiveIsAdmin && !effectiveIsEvaluator && !!profile && !profile.phone
   );
-  const [gender, setGender] = useState(profile?.gender || "");
   const [phone, setPhone] = useState(profile?.phone || "");
 
   async function signOut() {
@@ -58,7 +56,6 @@ export function PortalHeader({ isAdmin = false, isEvaluator = false, role, email
 
   const handleSave = () => {
     if (!profile) return;
-    if (!gender) { toast.error("Please select your gender."); return; }
     if (!phone.trim()) { toast.error("Please enter your phone number."); return; }
     startTransition(async () => {
       try {
@@ -66,7 +63,6 @@ export function PortalHeader({ isAdmin = false, isEvaluator = false, role, email
           fullName: profile.full_name,
           department: profile.department,
           year: profile.year,
-          gender,
           phone,
         });
         toast.success("Profile saved!");
@@ -137,18 +133,6 @@ export function PortalHeader({ isAdmin = false, isEvaluator = false, role, email
           {!effectiveIsAdmin && !effectiveIsEvaluator && profile && (
             isEditing ? (
               <div className="flex flex-wrap items-center gap-2">
-                <div className="w-28">
-                  <Select value={gender} onValueChange={setGender}>
-                    <SelectTrigger className="h-7 text-xs bg-white/10 border-white/20 text-white">
-                      <SelectValue placeholder="Gender" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Male">Male</SelectItem>
-                      <SelectItem value="Female">Female</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
                 <div className="relative w-34">
                   <Input
                     placeholder="Phone No"
@@ -171,7 +155,7 @@ export function PortalHeader({ isAdmin = false, isEvaluator = false, role, email
               <div className="flex items-center gap-2 text-xs">
                 <div className="flex items-center gap-1.5 rounded-full bg-white/10 border border-white/20 px-3 py-1 text-white font-semibold">
                   <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                  <span>{gender} · {phone}</span>
+                  <span>{phone || "Add Phone"}</span>
                 </div>
                 <Button
                   size="sm"

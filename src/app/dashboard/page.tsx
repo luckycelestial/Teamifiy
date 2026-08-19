@@ -1,96 +1,103 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/integrations/supabase/client";
-import { getDashboardData } from "@/app/actions/portal";
+import { useAuth } from "@/lib/auth";
 import { PortalHeader } from "@/components/portal/PortalHeader";
-import { ProfileForm } from "@/components/portal/ProfileForm";
-import { InvitesPanel } from "@/components/portal/InvitesPanel";
-import { CreateTeamCard } from "@/components/portal/CreateTeamCard";
 import { TeamPanel } from "@/components/portal/TeamPanel";
+import { getDashboardData } from "@/app/actions/portal";
 
-function DashboardContent() {
+export default function DashboardPage() {
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<{ id: string; email: string } | null>(null);
-  const [data, setData] = useState<Awaited<ReturnType<typeof getDashboardData>> | null>(null);
 
-  async function loadData(userId: string, email?: string) {
-    try {
-      const res = await getDashboardData(userId, email);
-      setData(res);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
+  const [data, setData] = useState<any>(null);
+  const [dataLoading, setDataLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.replace("/auth");
     }
+  }, [user, authLoading, router]);
+
+  useEffect(() => {
+    if (!user) return;
+    const currentUser = user;
+    let isMounted = true;
+
+    async function load() {
+      try {
+        const res = await getDashboardData(currentUser.id, currentUser.email);
+        if (isMounted) {
+          setData(res);
+          setDataLoading(false);
+        }
+      } catch (err: unknown) {
+        if (isMounted) {
+          setError(err instanceof Error ? err.message : "Failed to load dashboard.");
+          setDataLoading(false);
+        }
+      }
+    }
+
+    load();
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
+
+  if (authLoading || dataLoading) {
+    return (
+      <div className="min-h-screen bg-surface-muted flex items-center justify-center">
+        <div className="flex items-center gap-3 text-sm text-muted-foreground animate-pulse">
+          <div className="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+          <span>Loading portal…</span>
+        </div>
+      </div>
+    );
   }
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: authData }) => {
-      const session = authData.session;
-      if (!session) {
-        router.push("/auth");
-        return;
-      }
-      if (session.user.email && !session.user.email.endsWith("@sece.ac.in")) {
-        supabase.auth.signOut().then(() => {
-          router.push("/auth?error=invalid_domain");
-        });
-        return;
-      }
-      const u = { id: session.user.id, email: session.user.email ?? "" };
-      setUser(u);
-      loadData(u.id, u.email);
-    });
-  }, [router]);
+  if (!user) return null;
 
-  useEffect(() => {
-    if (data?.isAdmin) {
-      router.push("/admin");
-    }
-  }, [data?.isAdmin, router]);
-
-  if (loading || !user || data?.isAdmin) {
-    if (data?.isAdmin) {
-      return (
-        <div className="min-h-screen bg-surface-muted flex flex-col items-center justify-center p-8">
-          <p className="text-sm font-semibold text-navy">Redirecting to Admin Console…</p>
+  if (error) {
+    return (
+      <div className="min-h-screen bg-surface-muted flex flex-col items-center justify-center p-4">
+        <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 max-w-md text-center">
+          <p className="text-sm text-destructive font-medium">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 px-4 py-2 text-xs font-semibold text-white bg-primary rounded-lg hover:bg-primary/90 transition-all"
+          >
+            Retry
+          </button>
         </div>
-      );
-    }
-    return <p className="p-8 text-sm text-muted-foreground">Loading your portal…</p>;
+      </div>
+    );
   }
 
   const profile = data?.profile;
   const isAdmin = data?.isAdmin ?? false;
+  const isEvaluator = data?.isEvaluator ?? false;
+  const role = data?.role ?? "student";
+
   const profiles = data?.profiles ?? [];
-  const memberships = (data?.memberships ?? []).map((m) => ({
+  const memberships = (data?.memberships ?? []).map((m: any) => ({
     id: m.id,
     team_id: m.teamId,
     user_id: m.userId,
     is_leader: m.isLeader,
     joined_at: m.joinedAt.toISOString(),
   }));
-  const teams = (data?.teams ?? []).map((t) => ({
+
+  const teams = (data?.teams ?? []).map((t: any) => ({
     id: t.id,
     name: t.name,
     problem_statement: t.problemStatement,
     category: t.category,
     leader_id: t.leaderId,
     status: t.status as "forming" | "submitted" | "approved" | "rejected" | "locked",
-    admin_note: t.adminNote,
     created_at: t.createdAt.toISOString(),
-  }));
-  const invitations = (data?.invitations ?? []).map((i) => ({
-    id: i.id,
-    team_id: i.teamId,
-    invitee_id: i.inviteeId,
-    inviter_id: i.inviterId,
-    status: i.status as "pending" | "accepted" | "declined" | "cancelled",
-    message: i.message,
-    created_at: i.createdAt.toISOString(),
   }));
 
   const formattedProfile = profile
@@ -100,7 +107,6 @@ function DashboardContent() {
         email: profile.email,
         department: profile.department,
         year: profile.year,
-        gender: profile.gender,
         phone: profile.phone,
       }
     : {
@@ -109,91 +115,56 @@ function DashboardContent() {
         email: user.email,
         department: null,
         year: null,
-        gender: null,
         phone: null,
       };
 
-  const formattedProfiles = profiles.map((p) => ({
+  const formattedProfiles = profiles.map((p: any) => ({
     id: p.id,
     full_name: p.fullName,
     email: p.email,
     department: p.department,
     year: p.year,
-    gender: p.gender,
     phone: p.phone,
   }));
 
   const registrationsOpen = data?.registrationsOpen ?? true;
-  const myMembership = memberships.find((m) => m.user_id === user.id);
-  const myTeam = myMembership ? teams.find((t) => t.id === myMembership.team_id) : undefined;
-  const myTeamMembers = myTeam ? memberships.filter((m) => m.team_id === myTeam.id) : [];
-  const myInvites = invitations.filter((i) => i.invitee_id === user.id && i.status === "pending");
-  const teamInvites = myTeam ? invitations.filter((i) => i.team_id === myTeam.id) : [];
-  const leadsAnotherTeam = teams.some((t) => t.leader_id === user.id);
+  const myMembership = memberships.find((m: any) => m.user_id === user.id);
+  const myTeam = myMembership ? teams.find((t: any) => t.id === myMembership.team_id) : undefined;
+  const myTeamMembers = myTeam ? memberships.filter((m: any) => m.team_id === myTeam.id) : [];
 
   return (
     <div className="min-h-screen bg-surface-muted">
-      <PortalHeader isAdmin={isAdmin} email={user.email} profile={formattedProfile} />
+      <PortalHeader isAdmin={isAdmin} isEvaluator={isEvaluator} role={role} email={user?.email ?? ""} profile={formattedProfile} />
 
       <main className="mx-auto max-w-7xl px-4 sm:px-6 py-6 sm:py-8">
-        <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-foreground">
-          Welcome{formattedProfile.full_name ? `, ${formattedProfile.full_name.split(" ")[0]}` : ""}
-        </h1>
-        <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
-          Build a valid SIH team: 6 members, at least one female member, one team per student.
-        </p>
-
-        {!registrationsOpen && (
-          <div className="mt-5 rounded-xl border border-rose-300/80 bg-rose-50/90 p-4 sm:p-6 text-center shadow-card-soft">
-            <h2 className="text-base sm:text-xl font-extrabold text-rose-950 tracking-tight">
-              Registrations for SIH 2026 Internal Hackathon is Closed.
-            </h2>
-          </div>
-        )}
-
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-5 gap-6 items-start">
-          {/* Left col — 3/5 on desktop, 1/1 on mobile */}
-          <div className="col-span-1 md:col-span-3 space-y-6">
-            {myTeam && myMembership ? (
-              <TeamPanel
-                team={myTeam}
-                members={myTeamMembers}
-                profiles={formattedProfiles}
-                teamInvites={teamInvites}
-                allMemberships={memberships}
-                currentUserId={user.id}
-                registrationsOpen={registrationsOpen}
-              />
-            ) : !registrationsOpen ? (
-              <div className="rounded-xl border border-border bg-card p-6 sm:p-8 text-center shadow-card-soft">
-                <p className="text-sm sm:text-base font-bold text-foreground">
-                  Registrations for SIH 2026 Internal Hackathon is Closed.
-                </p>
-              </div>
-            ) : (
-              <CreateTeamCard disabled={leadsAnotherTeam} />
-            )}
-          </div>
-
-          {/* Right col — 2/5 on desktop, 1/1 on mobile */}
-          <div className="col-span-1 md:col-span-2">
-            <InvitesPanel
-              invites={registrationsOpen ? myInvites : []}
-              teams={teams}
-              profiles={formattedProfiles}
-              inTeam={!!myMembership}
-            />
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-foreground">
+              Welcome{formattedProfile.full_name ? `, ${formattedProfile.full_name.split(" ")[0]}` : ""}
+            </h1>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+              SIH 2026 Internal Hackathon — Team Leader Dashboard
+            </p>
           </div>
         </div>
+
+        {myTeam ? (
+          <TeamPanel
+            team={myTeam}
+            members={myTeamMembers}
+            profiles={formattedProfiles}
+            currentUserId={user.id}
+            registrationsOpen={registrationsOpen}
+          />
+        ) : (
+          <div className="p-8 text-center bg-background border border-border rounded-xl">
+            <h3 className="font-bold text-lg">No Team Assigned</h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              Your profile is registered as a student. Only designated Team Leaders manage team submissions.
+            </p>
+          </div>
+        )}
       </main>
     </div>
-  );
-}
-
-export default function DashboardPage() {
-  return (
-    <Suspense fallback={<p className="p-8 text-sm text-muted-foreground">Checking access...</p>}>
-      <DashboardContent />
-    </Suspense>
   );
 }
