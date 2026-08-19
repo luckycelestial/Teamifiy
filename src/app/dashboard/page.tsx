@@ -1,65 +1,73 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/lib/auth";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import { PortalHeader } from "@/components/portal/PortalHeader";
 import { TeamPanel } from "@/components/portal/TeamPanel";
 import { getDashboardData } from "@/app/actions/portal";
 
 export default function DashboardPage() {
-  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-
-  const [data, setData] = useState<any>(null);
-  const [dataLoading, setDataLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<{ id: string; email: string } | null>(null);
+  const [data, setData] = useState<Awaited<ReturnType<typeof getDashboardData>> | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.replace("/auth");
+  async function loadData(u: { id: string; email: string }) {
+    try {
+      const res = await getDashboardData(u.id, u.email);
+      setData(res);
+    } catch (err: unknown) {
+      console.error("Dashboard error:", err);
+      setError(err instanceof Error ? err.message : "Failed to load dashboard.");
+    } finally {
+      setLoading(false);
     }
-  }, [user, authLoading, router]);
+  }
 
   useEffect(() => {
-    if (!user) return;
-    const currentUser = user;
-    let isMounted = true;
+    let mounted = true;
 
-    async function load() {
-      try {
-        const res = await getDashboardData(currentUser.id, currentUser.email);
-        if (isMounted) {
-          setData(res);
-          setDataLoading(false);
-        }
-      } catch (err: unknown) {
-        console.error("Dashboard error:", err);
-        if (isMounted) {
-          setError(err instanceof Error ? err.message : "Failed to load dashboard.");
-          setDataLoading(false);
-        }
+    supabase.auth.getSession().then(({ data: authData }) => {
+      if (!mounted) return;
+      const session = authData.session;
+      if (!session) {
+        router.push("/auth");
+        return;
       }
-    }
+      const u = { id: session.user.id, email: session.user.email ?? "" };
+      setUser(u);
+      loadData(u);
+    });
 
-    load();
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
+      if (!session) {
+        router.push("/auth");
+        return;
+      }
+      const u = { id: session.user.id, email: session.user.email ?? "" };
+      setUser(u);
+    });
+
     return () => {
-      isMounted = false;
+      mounted = false;
+      sub.subscription.unsubscribe();
     };
-  }, [user]);
+  }, [router]);
 
-  if (authLoading || dataLoading) {
+  if (loading || !user) {
     return (
       <div className="min-h-screen bg-surface-muted flex items-center justify-center">
         <div className="flex items-center gap-3 text-sm text-muted-foreground animate-pulse">
           <div className="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-          <span>Loading portal…</span>
+          <span>Loading student portal…</span>
         </div>
       </div>
     );
   }
-
-  if (!user) return null;
 
   if (error) {
     return (
@@ -104,7 +112,7 @@ export default function DashboardPage() {
   const formattedProfile = profile
     ? {
         id: profile.id,
-        full_name: profile.fullName || profile.full_name || "",
+        full_name: profile.fullName || "",
         email: profile.email || user.email,
         department: profile.department,
         year: profile.year,
@@ -136,7 +144,7 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-surface-muted">
-      <PortalHeader isAdmin={isAdmin} isEvaluator={isEvaluator} role={role} email={user?.email ?? ""} profile={formattedProfile} />
+      <PortalHeader isAdmin={isAdmin} isEvaluator={isEvaluator} role={role} email={user.email} profile={formattedProfile} />
 
       <main className="mx-auto max-w-7xl px-4 sm:px-6 py-6 sm:py-8">
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
