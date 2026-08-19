@@ -127,43 +127,11 @@ export function PortalHeader({ isAdmin = false, isEvaluator = false, role, email
 
         {/* Right: gender/phone for student, sign out */}
         <div className="flex items-center gap-3">
-          {!effectiveIsAdmin && !effectiveIsEvaluator && profile && (
-            isEditing ? (
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="relative w-34">
-                  <Input
-                    placeholder="Phone No"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="h-7 text-xs bg-white/10 border-white/20 text-white placeholder:text-white/40 pl-7"
-                  />
-                  <Phone className="absolute left-2 top-1.5 h-4 w-4 text-white/40 pointer-events-none" />
-                </div>
-                <Button
-                  size="sm"
-                  onClick={handleSave}
-                  disabled={isPending}
-                  className="h-7 bg-white text-navy text-xs font-bold hover:bg-white/90 px-3"
-                >
-                  {isPending ? "Saving…" : "Save"}
-                </Button>
+          {!effectiveIsAdmin && !effectiveIsEvaluator && profile && phone && (
+              <div className="flex items-center gap-1.5 rounded-full bg-white/10 border border-white/20 px-3 py-1 text-white text-xs font-semibold">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                <span>{phone}</span>
               </div>
-            ) : (
-              <div className="flex items-center gap-2 text-xs">
-                <div className="flex items-center gap-1.5 rounded-full bg-white/10 border border-white/20 px-3 py-1 text-white font-semibold">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                  <span>{phone || "Add Phone"}</span>
-                </div>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setIsEditing(true)}
-                  className="h-7 px-2 text-xs text-white/60 hover:text-white hover:bg-white/10"
-                >
-                  <Edit2 className="h-3 w-3 mr-1" /> Edit
-                </Button>
-              </div>
-            )
           )}
 
           {isAdmin && (
