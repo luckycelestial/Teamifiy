@@ -121,7 +121,7 @@ export async function updateProfile(userId: string, data: Partial<ProfileData>) 
       department: data.department,
       year: data.year,
       phone: data.phone,
-      role: (data.email ?? "").trim().toLowerCase() === "cfi@sece.ac.in" ? "admin" : "student",
+      role: "student",
     },
   });
 }
@@ -147,7 +147,7 @@ export async function ensureProfile(userId: string, email?: string) {
         id: userId,
         email: userEmail,
         fullName: userEmail ? userEmail.split("@")[0]! : "User",
-        role: userEmail === "cfi@sece.ac.in" ? "admin" : "student",
+        role: "student",
       },
     });
   }
@@ -315,7 +315,7 @@ export async function getDashboardData(userId: string, email?: string) {
         id: activeUserId,
         email: userEmail,
         fullName: userEmail ? userEmail.split("@")[0]! : "User",
-        role: userEmail === "cfi@sece.ac.in" ? "admin" : "student",
+        role: "student",
       },
     });
   }
