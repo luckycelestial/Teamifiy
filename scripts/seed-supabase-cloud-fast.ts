@@ -36,13 +36,21 @@ async function main() {
   const teams: any[] = [];
   const membershipsMap = new Map<string, any>();
 
-  // Admin profile
+  // Admin & Evaluator profiles
   profilesMap.set("admin_cfi_coordinator", {
     id: "admin_cfi_coordinator",
     email: "cfi@sece.ac.in",
     full_name: "Centre for Innovation Coordinator",
     department: "Innovation Studio",
     role: "admin",
+  });
+
+  profilesMap.set("evaluator_edc_coordinator", {
+    id: "evaluator_edc_coordinator",
+    email: "edc@sece.ac.in",
+    full_name: "Entrepreneurship Development Cell",
+    department: "EDC",
+    role: "evaluator",
   });
 
   rows.forEach((r, i) => {
