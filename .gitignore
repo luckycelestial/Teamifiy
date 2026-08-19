@@ -13,6 +13,8 @@ dist-ssr
 .output
 .next
 *.tsbuildinfo
+*.sql
+sql_batches.json
 .vinxi
 .tanstack/**
 .nitro
