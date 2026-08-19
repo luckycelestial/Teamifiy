@@ -292,6 +292,25 @@ export async function rolloverAcademicYear(input: {
   return { success: true, count: updatedCount };
 }
 
+// ─── Paginated fetch helper (bypasses Supabase 1000-row cap) ─────────────────
+
+async function fetchAll(table: string, select: string, orderBy?: { column: string; ascending?: boolean }) {
+  const PAGE_SIZE = 1000;
+  let allData: any[] = [];
+  let from = 0;
+  while (true) {
+    let query = supabaseFast.from(table).select(select).range(from, from + PAGE_SIZE - 1);
+    if (orderBy) query = query.order(orderBy.column, { ascending: orderBy.ascending ?? true });
+    const { data, error } = await query;
+    if (error) { console.warn(`fetchAll ${table} error:`, error); break; }
+    if (!data || data.length === 0) break;
+    allData = allData.concat(data);
+    if (data.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+  return allData;
+}
+
 // ─── Fast HTTPS Dashboard data loader ───────────────────────────────────────
 
 export async function getDashboardData(userId: string, email?: string) {
@@ -321,50 +340,12 @@ export async function getDashboardData(userId: string, email?: string) {
     if (pId && pId.length > 0) profileData = pId[0];
   }
 
-  // 2. Fetch profiles, memberships, teams, portal_settings over HTTPS Port 443
-  const [pRes, mRes, tRes, sRes] = await Promise.all([
-    supabaseFast.from("profiles").select("id, full_name, email, department, year, phone, role").order("full_name").range(0, 5000),
-    supabaseFast.from("team_members").select("id, team_id, user_id, is_leader, joined_at").range(0, 5000),
-    supabaseFast.from("teams").select("id, name, problem_statement, category, leader_id, status, created_at").order("created_at", { ascending: false }).range(0, 5000),
-    supabaseFast.from("portal_settings").select("key, value").eq("key", "registrations_open").maybeSingle(),
-  ]);
-
-  const rawProfiles = pRes.data || [];
-  const rawMemberships = mRes.data || [];
-  const rawTeams = tRes.data || [];
-
-  const profiles = rawProfiles.map((p) => ({
-    id: p.id,
-    fullName: p.full_name,
-    email: p.email,
-    department: p.department,
-    year: p.year,
-    phone: p.phone,
-    role: p.role || "student",
-  }));
-
-  const memberships = rawMemberships.map((m) => ({
-    id: m.id,
-    teamId: m.team_id,
-    userId: m.user_id,
-    isLeader: m.is_leader,
-    joinedAt: m.joined_at,
-  }));
-
-  const teams = rawTeams.map((t) => ({
-    id: t.id,
-    name: t.name,
-    problemStatement: t.problem_statement,
-    category: t.category,
-    leaderId: t.leader_id,
-    status: t.status || "submitted",
-    createdAt: t.created_at,
-  }));
-
   const userRole = (profileData?.role || "student").toLowerCase();
   const isAdmin = userRole === "admin";
   const isEvaluator = userRole === "evaluator";
-  const registrationsOpen = sRes.data ? sRes.data.value === "true" : true;
+
+  const { data: sRes } = await supabaseFast.from("portal_settings").select("key, value").eq("key", "registrations_open").maybeSingle();
+  const registrationsOpen = sRes ? sRes.value === "true" : true;
 
   const profile = profileData
     ? {
@@ -386,16 +367,78 @@ export async function getDashboardData(userId: string, email?: string) {
         role: "student",
       };
 
+  // 2. For student dashboard: fetch ONLY their team data (no 1000-row cap problem)
+  if (!isAdmin && !isEvaluator) {
+    const dbProfileId = profileData?.id || activeUserId;
+
+    // Find this user's team membership
+    const { data: myMems } = await supabaseFast.from("team_members").select("*").eq("user_id", dbProfileId);
+    const myMembership = myMems && myMems.length > 0 ? myMems[0] : null;
+
+    if (!myMembership) {
+      return {
+        profile, isAdmin, isEvaluator, role: userRole,
+        profiles: [profile], memberships: [], teams: [], invitations: [], registrationsOpen,
+      };
+    }
+
+    // Fetch the team
+    const { data: teamRows } = await supabaseFast.from("teams").select("*").eq("id", myMembership.team_id);
+    const team = teamRows && teamRows.length > 0 ? teamRows[0] : null;
+
+    // Fetch all members of this team
+    const { data: teamMems } = await supabaseFast.from("team_members").select("*").eq("team_id", myMembership.team_id);
+    const memberUserIds = (teamMems || []).map((m: any) => m.user_id);
+
+    // Fetch profiles of team members
+    const { data: memberProfiles } = memberUserIds.length > 0
+      ? await supabaseFast.from("profiles").select("id, full_name, email, department, year, phone, role").in("id", memberUserIds)
+      : { data: [] };
+
+    const profiles = (memberProfiles || []).map((p: any) => ({
+      id: p.id, fullName: p.full_name, email: p.email,
+      department: p.department, year: p.year, phone: p.phone, role: p.role || "student",
+    }));
+
+    const memberships = (teamMems || []).map((m: any) => ({
+      id: m.id, teamId: m.team_id, userId: m.user_id, isLeader: m.is_leader, joinedAt: m.joined_at,
+    }));
+
+    const teams = team ? [{
+      id: team.id, name: team.name, problemStatement: team.problem_statement,
+      category: team.category, leaderId: team.leader_id, status: team.status || "submitted", createdAt: team.created_at,
+    }] : [];
+
+    return {
+      profile, isAdmin, isEvaluator, role: userRole,
+      profiles, memberships, teams, invitations: [], registrationsOpen,
+    };
+  }
+
+  // 3. For admin/evaluator: paginate to fetch ALL records
+  const [rawProfiles, rawMemberships, rawTeams] = await Promise.all([
+    fetchAll("profiles", "id, full_name, email, department, year, phone, role", { column: "full_name", ascending: true }),
+    fetchAll("team_members", "id, team_id, user_id, is_leader, joined_at"),
+    fetchAll("teams", "id, name, problem_statement, category, leader_id, status, created_at", { column: "created_at", ascending: false }),
+  ]);
+
+  const profiles = rawProfiles.map((p: any) => ({
+    id: p.id, fullName: p.full_name, email: p.email,
+    department: p.department, year: p.year, phone: p.phone, role: p.role || "student",
+  }));
+
+  const memberships = rawMemberships.map((m: any) => ({
+    id: m.id, teamId: m.team_id, userId: m.user_id, isLeader: m.is_leader, joinedAt: m.joined_at,
+  }));
+
+  const teams = rawTeams.map((t: any) => ({
+    id: t.id, name: t.name, problemStatement: t.problem_statement,
+    category: t.category, leaderId: t.leader_id, status: t.status || "submitted", createdAt: t.created_at,
+  }));
+
   return {
-    profile,
-    isAdmin,
-    isEvaluator,
-    role: userRole,
-    profiles,
-    memberships,
-    teams,
-    invitations: [],
-    registrationsOpen,
+    profile, isAdmin, isEvaluator, role: userRole,
+    profiles, memberships, teams, invitations: [], registrationsOpen,
   };
 }
 
