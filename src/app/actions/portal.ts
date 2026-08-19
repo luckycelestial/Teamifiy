@@ -460,3 +460,51 @@ export async function toggleRegistrations(open: boolean) {
   await supabaseFast.from("portal_settings").upsert({ key: "registrations_open", value: open ? "true" : "false" });
   return { success: true, open };
 }
+
+// ─── Evaluation Management ──────────────────────────────────────────────────
+
+export type EvaluationRecord = {
+  teamId: string;
+  evaluatorId?: string;
+  evaluatorEmail?: string;
+  novelty: number;        // 0 - 25
+  technical: number;      // 0 - 25
+  impact: number;         // 0 - 25
+  presentation: number;   // 0 - 25
+  totalScore: number;     // 0 - 100
+  verdict: "shortlisted" | "reviewed" | "rejected" | "pending";
+  remarks: string;
+  updatedAt: string;
+};
+
+export async function getEvaluations(): Promise<Record<string, EvaluationRecord>> {
+  const { data } = await supabaseFast.from("portal_settings").select("value").eq("key", "sih_evaluations").maybeSingle();
+  if (!data || !data.value) return {};
+  try {
+    return JSON.parse(data.value);
+  } catch {
+    return {};
+  }
+}
+
+export async function saveTeamEvaluation(evalRecord: EvaluationRecord) {
+  const session = await requireAuth();
+  const isEval = await checkIsEvaluator(session.id, session.email);
+  if (!isEval) throw new Error("Unauthorized: evaluator access required.");
+
+  const current = await getEvaluations();
+  current[evalRecord.teamId] = {
+    ...evalRecord,
+    evaluatorId: session.id,
+    evaluatorEmail: session.email,
+    updatedAt: new Date().toISOString(),
+  };
+
+  await supabaseFast.from("portal_settings").upsert({
+    key: "sih_evaluations",
+    value: JSON.stringify(current),
+  });
+
+  return { success: true, evaluations: current };
+}
+

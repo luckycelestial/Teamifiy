@@ -99,9 +99,6 @@ export function PortalHeader({ isAdmin = false, isEvaluator = false, role, email
               <h1 className="text-sm sm:text-base font-extrabold tracking-tight text-white">
                 Evaluator Portal
               </h1>
-              <span className="rounded-full bg-emerald-500/20 border border-emerald-400/40 px-2 py-0.5 text-[10px] sm:text-[11px] font-bold text-emerald-300">
-                SIH Evaluation Panel
-              </span>
             </div>
           )}
 
