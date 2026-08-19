@@ -5,7 +5,7 @@ import { cookies } from "next/headers";
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  let next = searchParams.get("next") ?? "/dashboard";
+  let next = searchParams.get("next");
 
   if (code) {
     const cookieStore = await cookies();
@@ -30,14 +30,24 @@ export async function GET(request: Request) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error && data?.user) {
       const userEmail = (data.user.email ?? "").trim().toLowerCase();
-      const adminEmail = (process.env.NEXT_PUBLIC_ADMIN_EMAIL || "").trim().toLowerCase();
 
-      const isAdmin = adminEmail !== "" && userEmail === adminEmail;
+      // Look up user role directly from database
+      const { data: profile } = userEmail ? await supabase
+        .from("profiles")
+        .select("role")
+        .or(`id.eq.${data.user.id},email.eq.${userEmail}`)
+        .maybeSingle() : { data: null };
 
-      if (isAdmin) {
-        next = "/admin";
-      } else {
-        next = "/dashboard";
+      const role = (profile?.role ?? "student").toLowerCase();
+
+      if (!next) {
+        if (role === "admin") {
+          next = "/admin";
+        } else if (role === "evaluator") {
+          next = "/evaluator";
+        } else {
+          next = "/dashboard";
+        }
       }
 
       const targetUrl = origin.includes("localhost")
