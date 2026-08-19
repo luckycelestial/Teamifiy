@@ -46,13 +46,30 @@ export async function proxy(request: NextRequest) {
 
   // Database-driven role routing (Admin / Evaluator / Student)
   if (user) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .maybeSingle();
+    const userEmail = (user.email ?? "").trim().toLowerCase();
+    
+    // Look up profile by user.id OR user.email
+    let profileData: { role: string; id: string } | null = null;
 
-    const role = (profile?.role ?? "student").toLowerCase();
+    if (user.id) {
+      const { data: pById } = await supabase
+        .from("profiles")
+        .select("role, id")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (pById) profileData = pById;
+    }
+
+    if (!profileData && userEmail) {
+      const { data: pByEmail } = await supabase
+        .from("profiles")
+        .select("role, id")
+        .eq("email", userEmail)
+        .maybeSingle();
+      if (pByEmail) profileData = pByEmail;
+    }
+
+    const role = (profileData?.role ?? "student").toLowerCase();
 
     // Admin attempting to access student dashboard or evaluator page -> redirect to admin console
     if ((pathname.startsWith("/dashboard") || pathname.startsWith("/evaluator")) && role === "admin") {
