@@ -542,29 +542,56 @@ function AdminContent() {
                           {/* Member chips */}
                           <td className="px-4 py-3 min-w-[260px]">
                             <div className="flex flex-wrap gap-1.5">
-                              {members.map((m) => (
-                                <span
-                                  key={m.id}
-                                  onClick={() => setSelectedStudent({
-                                    fullName: m.fullName,
-                                    email: m.email ?? undefined,
-                                    department: m.department,
-                                    year: m.year,
-                                    phone: m.phone,
-                                  })}
-                                  title="Click to view contact details"
-                                  className="inline-flex items-center gap-1 rounded-full border border-border bg-surface-muted px-2.5 py-0.5 text-[11px] font-medium text-foreground cursor-pointer hover:border-navy/40 hover:bg-navy/5 transition-all shadow-2xs"
-                                >
-                                  <span className="h-1.5 w-1.5 rounded-full flex-shrink-0 bg-blue-500" />
-                                  {m.fullName}
-                                  {m.department && (
-                                    <span className="text-muted-foreground">· {m.department}</span>
-                                  )}
-                                  {m.year && (
-                                    <span className="text-muted-foreground">· {toRomanYear(m.year)}</span>
-                                  )}
-                                </span>
-                              ))}
+                              {members.map((m) => {
+                                const isLeader = m.id === team.leaderId;
+                                return isLeader ? (
+                                  <span
+                                    key={m.id}
+                                    onClick={() => setSelectedStudent({
+                                      fullName: m.fullName,
+                                      email: m.email ?? undefined,
+                                      department: m.department,
+                                      year: m.year,
+                                      phone: m.phone,
+                                    })}
+                                    title="Team Leader — Click to view contact details"
+                                    className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 dark:bg-amber-950/50 px-2.5 py-0.5 text-[11px] font-bold text-amber-950 dark:text-amber-100 cursor-pointer hover:border-amber-400 hover:bg-amber-100/70 transition-all shadow-xs ring-1 ring-amber-400/20"
+                                  >
+                                    <span className="inline-flex items-center justify-center rounded-full bg-amber-500 text-[9px] font-black text-white px-1.5 py-0.2 tracking-wider uppercase">
+                                      LEAD
+                                    </span>
+                                    <span>{m.fullName}</span>
+                                    {m.department && (
+                                      <span className="text-amber-800/80 dark:text-amber-300/80 font-medium">· {m.department}</span>
+                                    )}
+                                    {m.year && (
+                                      <span className="text-amber-800/80 dark:text-amber-300/80 font-medium">· {toRomanYear(m.year)}</span>
+                                    )}
+                                  </span>
+                                ) : (
+                                  <span
+                                    key={m.id}
+                                    onClick={() => setSelectedStudent({
+                                      fullName: m.fullName,
+                                      email: m.email ?? undefined,
+                                      department: m.department,
+                                      year: m.year,
+                                      phone: m.phone,
+                                    })}
+                                    title="Click to view contact details"
+                                    className="inline-flex items-center gap-1 rounded-full border border-border bg-surface-muted px-2.5 py-0.5 text-[11px] font-medium text-foreground cursor-pointer hover:border-navy/40 hover:bg-navy/5 transition-all shadow-2xs"
+                                  >
+                                    <span className="h-1.5 w-1.5 rounded-full flex-shrink-0 bg-blue-500" />
+                                    {m.fullName}
+                                    {m.department && (
+                                      <span className="text-muted-foreground">· {m.department}</span>
+                                    )}
+                                    {m.year && (
+                                      <span className="text-muted-foreground">· {toRomanYear(m.year)}</span>
+                                    )}
+                                  </span>
+                                );
+                              })}
                             </div>
                           </td>
 
