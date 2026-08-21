@@ -7,8 +7,9 @@ This file tracks critical security learnings, vulnerability patterns, and securi
 **Learning:** Default Next.js configuration does not automatically set defensive HTTP headers; they must be explicitly configured in `next.config.ts`.
 **Prevention:** Enforce security headers globally on all routes (`/:path*`) via `headers()` in `next.config.ts`.
 
-## 2026-08-21 - Authorization Bypass & IDOR on Team Evaluation Submission
-**Vulnerability:** `saveTeamEvaluation` only verified that the caller had the `evaluator` role, without verifying if the target team was assigned to them in `evaluator_assignments`. An evaluator could score/modify evaluations for teams they were not assigned to. Additionally, scores were not clamped on the server side.
-**Learning:** Role checks alone are insufficient for multi-tenant / batch assignment workflows; granular resource ownership checks must accompany role verification on every mutation.
-**Prevention:** Verify both `evaluator_assignments` table membership for non-admin evaluators and enforce strict numeric boundary validation (0–25) on the server.
+## 2026-08-21 - Server Action Authorization Hardening (Zero-Trust Beyond UI)
+**Vulnerability:** Several mutations and data retrieval actions (`removeMember`, `disbandTeam`, `getAdminDashboardData`, `getAllAssignments`, `getEvaluations`, `getMyAssignedTeamIds`) previously relied partially on UI-level gating rather than robust server-side ownership / role enforcement.
+**Learning:** Client-side routing and button visibility offer zero security against direct RPC / Server Action invocations.
+**Prevention:** Every server action must independently resolve the session and verify role and resource ownership (e.g. team leader or admin status) before executing database modifications.
+
 

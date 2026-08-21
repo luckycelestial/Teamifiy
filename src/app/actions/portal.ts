@@ -284,22 +284,109 @@ export async function createTeam(input: {
 
 export async function leaveTeam(userId: string) {
   const session = await requireAuth();
-  if (session.id !== userId) {
+  const cleanEmail = (session.email || "").trim().toLowerCase().replace(/\s+/g, "");
+  let activeProfileId = session.id;
+  if (cleanEmail) {
+    const { data: pEmail } = await supabaseFast.from("profiles").select("id").eq("email", cleanEmail).limit(1);
+    if (pEmail && pEmail.length > 0 && pEmail[0]?.id) {
+      activeProfileId = pEmail[0].id;
+    }
+  }
+
+  const isAdmin = await checkIsAdmin(session.id, session.email);
+  if (session.id !== userId && activeProfileId !== userId && !isAdmin) {
     throw new Error("Unauthorized: you can only leave your own team.");
   }
   await checkRegistrationsOpen(session.id, session.email);
-  return await supabaseFast.from("team_members").delete().eq("user_id", userId);
+  return await supabaseFast.from("team_members").delete().in("user_id", [userId, activeProfileId]);
 }
 
 export async function removeMember(memberId: string) {
   const session = await requireAuth();
   await checkRegistrationsOpen(session.id, session.email);
+
+  const isAdmin = await checkIsAdmin(session.id, session.email);
+
+  const { data: memberRecord } = await supabaseFast
+    .from("team_members")
+    .select("id, team_id, user_id, is_leader")
+    .eq("id", memberId)
+    .maybeSingle();
+
+  if (!memberRecord) {
+    throw new Error("Team member not found.");
+  }
+
+  if (!isAdmin) {
+    const cleanEmail = (session.email || "").trim().toLowerCase().replace(/\s+/g, "");
+    let activeProfileId = session.id;
+    if (cleanEmail) {
+      const { data: pEmail } = await supabaseFast.from("profiles").select("id").eq("email", cleanEmail).limit(1);
+      if (pEmail && pEmail.length > 0 && pEmail[0]?.id) {
+        activeProfileId = pEmail[0].id;
+      }
+    }
+
+    const { data: teamLeaderCheck } = await supabaseFast
+      .from("team_members")
+      .select("id")
+      .eq("team_id", memberRecord.team_id)
+      .in("user_id", [session.id, activeProfileId])
+      .eq("is_leader", true)
+      .limit(1);
+
+    const isSelf = memberRecord.user_id === session.id || memberRecord.user_id === activeProfileId;
+    const isLeaderOfThisTeam = Boolean(teamLeaderCheck && teamLeaderCheck.length > 0);
+
+    if (!isSelf && !isLeaderOfThisTeam) {
+      throw new Error("Unauthorized: Only the team leader or admin can remove members from this team.");
+    }
+  }
+
   return await supabaseFast.from("team_members").delete().eq("id", memberId);
 }
 
 export async function disbandTeam(teamId: string) {
   const session = await requireAuth();
   await checkRegistrationsOpen(session.id, session.email);
+
+  const isAdmin = await checkIsAdmin(session.id, session.email);
+  if (!isAdmin) {
+    const cleanEmail = (session.email || "").trim().toLowerCase().replace(/\s+/g, "");
+    let activeProfileId = session.id;
+    if (cleanEmail) {
+      const { data: pEmail } = await supabaseFast.from("profiles").select("id").eq("email", cleanEmail).limit(1);
+      if (pEmail && pEmail.length > 0 && pEmail[0]?.id) {
+        activeProfileId = pEmail[0].id;
+      }
+    }
+
+    const { data: teamData } = await supabaseFast
+      .from("teams")
+      .select("leader_id")
+      .eq("id", teamId)
+      .maybeSingle();
+
+    const isLeaderDirect = teamData && (teamData.leader_id === session.id || teamData.leader_id === activeProfileId);
+
+    let isLeaderMembership = false;
+    if (!isLeaderDirect) {
+      const { data: mem } = await supabaseFast
+        .from("team_members")
+        .select("id")
+        .eq("team_id", teamId)
+        .in("user_id", [session.id, activeProfileId])
+        .eq("is_leader", true)
+        .limit(1);
+      isLeaderMembership = Boolean(mem && mem.length > 0);
+    }
+
+    if (!isLeaderDirect && !isLeaderMembership) {
+      throw new Error("Unauthorized: Only the team leader or admin can disband the team.");
+    }
+  }
+
+  await supabaseFast.from("evaluator_assignments").delete().eq("team_id", teamId);
   await supabaseFast.from("team_members").delete().eq("team_id", teamId);
   return await supabaseFast.from("teams").delete().eq("id", teamId);
 }
@@ -564,11 +651,19 @@ export async function getDashboardData(userId: string, email?: string) {
 
 export async function getAdminDashboardData() {
   const session = await requireAuth();
+  const isAdmin = await checkIsAdmin(session.id, session.email);
+  if (!isAdmin) {
+    throw new Error("Unauthorized: admin access required.");
+  }
   return await getDashboardData(session.id, session.email);
 }
 
 export async function getEvaluatorDashboardData() {
   const session = await requireAuth();
+  const isEval = await checkIsEvaluator(session.id, session.email);
+  if (!isEval) {
+    throw new Error("Unauthorized: evaluator access required.");
+  }
 
   // Get base dashboard data (all records, admin-style fetch)
   const base = await getDashboardData(session.id, session.email);
@@ -637,6 +732,12 @@ export type EvaluationRecord = {
 };
 
 export async function getEvaluations(): Promise<Record<string, EvaluationRecord>> {
+  const session = await requireAuth();
+  const isAuthorized = await checkIsEvaluator(session.id, session.email);
+  if (!isAuthorized) {
+    throw new Error("Unauthorized: evaluator or admin access required.");
+  }
+
   const { data } = await supabaseFast.from("portal_settings").select("value").eq("key", "sih_evaluations").maybeSingle();
   if (!data || !data.value) return {};
   try {
@@ -720,6 +821,12 @@ export type EvaluatorAssignment = {
 
 /** Returns all assignments — used by admin to build the assignments overview */
 export async function getAllAssignments(): Promise<EvaluatorAssignment[]> {
+  const session = await requireAuth();
+  const isAuthorized = await checkIsEvaluator(session.id, session.email);
+  if (!isAuthorized) {
+    throw new Error("Unauthorized: evaluator or admin access required.");
+  }
+
   const { data, error } = await supabaseFast
     .from("evaluator_assignments")
     .select("id, team_id, evaluator_id, assigned_by, assigned_at");
@@ -735,10 +842,25 @@ export async function getAllAssignments(): Promise<EvaluatorAssignment[]> {
 
 /** Returns only the team IDs assigned to a specific evaluator */
 export async function getMyAssignedTeamIds(evaluatorId: string): Promise<string[]> {
+  const session = await requireAuth();
+  const isAdmin = await checkIsAdmin(session.id, session.email);
+  const cleanEmail = (session.email || "").trim().toLowerCase().replace(/\s+/g, "");
+  let activeProfileId = session.id;
+  if (cleanEmail) {
+    const { data: pEmail } = await supabaseFast.from("profiles").select("id").eq("email", cleanEmail).limit(1);
+    if (pEmail && pEmail.length > 0 && pEmail[0]?.id) {
+      activeProfileId = pEmail[0].id;
+    }
+  }
+
+  if (session.id !== evaluatorId && activeProfileId !== evaluatorId && !isAdmin) {
+    throw new Error("Unauthorized: you can only query your own assignments.");
+  }
+
   const { data, error } = await supabaseFast
     .from("evaluator_assignments")
     .select("team_id")
-    .eq("evaluator_id", evaluatorId);
+    .in("evaluator_id", [evaluatorId, session.id, activeProfileId]);
   if (error) { console.warn("getMyAssignedTeamIds error:", error); return []; }
   return (data || []).map((r: any) => r.team_id as string);
 }
