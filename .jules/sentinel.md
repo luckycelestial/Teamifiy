@@ -7,9 +7,10 @@ This file tracks critical security learnings, vulnerability patterns, and securi
 **Learning:** Default Next.js configuration does not automatically set defensive HTTP headers; they must be explicitly configured in `next.config.ts`.
 **Prevention:** Enforce security headers globally on all routes (`/:path*`) via `headers()` in `next.config.ts`.
 
-## 2026-08-21 - Server Action Authorization Hardening (Zero-Trust Beyond UI)
-**Vulnerability:** Several mutations and data retrieval actions (`removeMember`, `disbandTeam`, `getAdminDashboardData`, `getAllAssignments`, `getEvaluations`, `getMyAssignedTeamIds`) previously relied partially on UI-level gating rather than robust server-side ownership / role enforcement.
-**Learning:** Client-side routing and button visibility offer zero security against direct RPC / Server Action invocations.
-**Prevention:** Every server action must independently resolve the session and verify role and resource ownership (e.g. team leader or admin status) before executing database modifications.
+## 2026-08-21 - Edge Middleware Registration for Server-Side Route Gating
+**Vulnerability:** Role-based route protection logic was located in `src/proxy.ts` rather than the Next.js convention `src/middleware.ts`. Consequently, Next.js bypassed edge execution on `/admin`, `/evaluator`, and `/dashboard`, relying solely on client-side React `useEffect` redirects.
+**Learning:** Next.js only recognizes and invokes edge middleware when defined at `src/middleware.ts` or root `middleware.ts` exporting a `middleware` function.
+**Prevention:** Always maintain active edge middleware in `src/middleware.ts` with explicit route matchers to reject or redirect unauthorized page requests before any component is rendered.
+
 
 
