@@ -247,7 +247,7 @@ function AdminContent() {
           onClick: () => { setActiveTab("assignments"); setFilterUnassigned(false); },
         },
         {
-          label: "Shortlisted",
+          label: "Recommended",
           value: shortlistedCount,
           active: false,
           color: "text-primary",

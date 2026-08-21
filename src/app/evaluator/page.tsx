@@ -247,7 +247,7 @@ function EvaluatorContent() {
                   {shortlistedCount} <span className="text-xs font-semibold text-muted-foreground">({avgScore ? `${avgScore} avg` : "—"})</span>
                 </p>
                 <p className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-muted-foreground mt-0.5">
-                  Shortlisted
+                  Recommended
                 </p>
               </div>
               <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
@@ -292,7 +292,7 @@ function EvaluatorContent() {
                   verdictFilter === "SHORTLISTED" ? "bg-navy text-white shadow-xs" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                ⭐ Shortlisted ({shortlistedCount})
+                ⭐ Recommended ({shortlistedCount})
               </button>
             </div>
 
@@ -458,17 +458,17 @@ function EvaluatorContent() {
                         <td className="px-4 py-3.5 text-center whitespace-nowrap min-w-[130px]">
                           {evaluation?.verdict === "shortlisted" && (
                             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300">
-                              <Star className="h-3 w-3 fill-emerald-600" /> Shortlisted
+                              <Star className="h-3 w-3 fill-emerald-600" /> Recommended
                             </span>
                           )}
                           {evaluation?.verdict === "waitlist" && (
                             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300">
-                              <Clock className="h-3 w-3" /> Waitlist
+                              <Clock className="h-3 w-3" /> May be Considered
                             </span>
                           )}
                           {evaluation?.verdict === "rejected" && (
                             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-300">
-                              <AlertTriangle className="h-3 w-3" /> Not Shortlisted
+                              <AlertTriangle className="h-3 w-3" /> Not Recommended
                             </span>
                           )}
                           {evaluation?.verdict === "reviewed" && (

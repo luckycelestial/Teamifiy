@@ -70,13 +70,13 @@ export function AdminTeamDetailsModal({ data, onClose, onSelectStudent }: Props)
       case "shortlisted":
         return (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 px-3 py-1 text-xs font-bold border border-emerald-300">
-            <Award className="h-3.5 w-3.5" /> Shortlisted
+            <Award className="h-3.5 w-3.5" /> Recommended
           </span>
         );
       case "waitlist":
         return (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 px-3 py-1 text-xs font-bold border border-amber-300">
-            <Clock className="h-3.5 w-3.5" /> Waitlist
+            <Clock className="h-3.5 w-3.5" /> May be Considered
           </span>
         );
       case "reviewed":
@@ -88,7 +88,7 @@ export function AdminTeamDetailsModal({ data, onClose, onSelectStudent }: Props)
       case "rejected":
         return (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 px-3 py-1 text-xs font-bold border border-rose-300">
-            <AlertCircle className="h-3.5 w-3.5" /> Not Shortlisted
+            <AlertCircle className="h-3.5 w-3.5" /> Not Recommended
           </span>
         );
       default:
@@ -210,11 +210,11 @@ export function AdminTeamDetailsModal({ data, onClose, onSelectStudent }: Props)
                 </div>
               </div>
 
-              {/* Waitlist Reason (if present) */}
+              {/* Waitlist / Consideration Reason (if present) */}
               {evaluation.waitlistReason && (
                 <div className="rounded-lg border border-amber-300 dark:border-amber-900/60 bg-amber-50/70 dark:bg-amber-950/30 p-3.5 space-y-1">
                   <p className="text-xs font-bold text-amber-950 dark:text-amber-200 uppercase tracking-wider flex items-center gap-1.5">
-                    <Clock className="h-3.5 w-3.5 text-amber-600" /> Waitlist Reason & Criteria
+                    <Clock className="h-3.5 w-3.5 text-amber-600" /> &quot;May be Considered&quot; — Reason &amp; Criteria
                   </p>
                   <p className="text-xs text-amber-900 dark:text-amber-100 leading-relaxed font-medium mt-0.5">
                     {evaluation.waitlistReason}

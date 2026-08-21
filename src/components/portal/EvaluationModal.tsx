@@ -264,7 +264,7 @@ export function EvaluationModal({
               Recommendation Verdict
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-              {/* Option 1: Shortlisted (onhover = green) */}
+              {/* Option 1: Recommended (onhover = green) */}
               <button
                 type="button"
                 onClick={() => setVerdict("shortlisted")}
@@ -275,10 +275,10 @@ export function EvaluationModal({
                 }`}
               >
                 <Star className={`h-4 w-4 ${verdict === "shortlisted" ? "fill-current" : ""}`} />
-                <span>Shortlisted</span>
+                <span>Recommended</span>
               </button>
 
-              {/* Option 2: Not Shortlisted (onhover = red) */}
+              {/* Option 2: Not Recommended (onhover = red) */}
               <button
                 type="button"
                 onClick={() => setVerdict("rejected")}
@@ -289,10 +289,10 @@ export function EvaluationModal({
                 }`}
               >
                 <AlertTriangle className="h-4 w-4" />
-                <span>Not Shortlisted</span>
+                <span>Not Recommended</span>
               </button>
 
-              {/* Option 3: Waitlist (onhover = yellow) */}
+              {/* Option 3: May be Considered (onhover = yellow) */}
               <button
                 type="button"
                 onClick={() => setVerdict("waitlist")}
@@ -303,18 +303,18 @@ export function EvaluationModal({
                 }`}
               >
                 <Clock className="h-4 w-4" />
-                <span>Waitlist</span>
+                <span>May be Considered</span>
               </button>
             </div>
           </div>
 
-          {/* Waitlist Reason Field (Visible only when Waitlist is selected) */}
+          {/* Reason Field (Visible only when 'May be Considered' is selected) */}
           {verdict === "waitlist" && (
             <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-150 rounded-xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-300 dark:border-amber-900/60 p-3.5">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-amber-950 dark:text-amber-200 uppercase tracking-wider flex items-center gap-1.5">
                   <Clock className="h-3.5 w-3.5 text-amber-600" />
-                  Reason for Waitlist <span className="text-rose-500 font-black">*</span>
+                  Reason for &quot;May be Considered&quot; <span className="text-rose-500 font-black">*</span>
                 </label>
                 <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">
                   Required to Submit
@@ -324,7 +324,7 @@ export function EvaluationModal({
                 rows={2}
                 value={waitlistReason}
                 onChange={(e) => setWaitlistReason(e.target.value)}
-                placeholder="Mention why this team is placed on the waitlist (e.g. pending prototype demo, requires second review, tiebreaker condition)..."
+                placeholder="Mention why this team may be considered (e.g. pending prototype demo, requires second review, tiebreaker condition)..."
                 className="w-full text-xs rounded-lg border border-amber-300 dark:border-amber-800 bg-background p-2.5 focus:outline-none focus:ring-2 focus:ring-amber-500 placeholder:text-muted-foreground/60 resize-none text-foreground"
               />
             </div>
