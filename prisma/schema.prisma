@@ -94,6 +94,7 @@ model Evaluation {
   totalScore     Int      @map("total_score")
   verdict        String
   remarks        String?
+  waitlistReason String?  @map("waitlist_reason")
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
 
   team      Team    @relation(fields: [teamId], references: [id], onDelete: Cascade)

@@ -149,6 +149,10 @@ function EvaluatorContent() {
       matchesVerdict = !evaluation || evaluation.verdict === "pending";
     } else if (verdictFilter === "SHORTLISTED") {
       matchesVerdict = evaluation?.verdict === "shortlisted";
+    } else if (verdictFilter === "WAITLIST") {
+      matchesVerdict = evaluation?.verdict === "waitlist";
+    } else if (verdictFilter === "REJECTED") {
+      matchesVerdict = evaluation?.verdict === "rejected";
     }
 
     return matchesQuery && matchesCategory && matchesVerdict;
@@ -453,18 +457,23 @@ function EvaluatorContent() {
                         {/* Verdict Column */}
                         <td className="px-4 py-3.5 text-center whitespace-nowrap min-w-[130px]">
                           {evaluation?.verdict === "shortlisted" && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300">
                               <Star className="h-3 w-3 fill-emerald-600" /> Shortlisted
                             </span>
                           )}
-                          {evaluation?.verdict === "reviewed" && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-300">
-                              <CheckCircle className="h-3 w-3" /> Reviewed
+                          {evaluation?.verdict === "waitlist" && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300">
+                              <Clock className="h-3 w-3" /> Waitlist
                             </span>
                           )}
                           {evaluation?.verdict === "rejected" && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300">
-                              <AlertTriangle className="h-3 w-3" /> Rejected
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-300">
+                              <AlertTriangle className="h-3 w-3" /> Not Shortlisted
+                            </span>
+                          )}
+                          {evaluation?.verdict === "reviewed" && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-300">
+                              <CheckCircle className="h-3 w-3" /> Reviewed
                             </span>
                           )}
                           {(!evaluation || evaluation?.verdict === "pending") && (

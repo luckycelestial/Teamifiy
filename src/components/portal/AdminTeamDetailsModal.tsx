@@ -37,8 +37,9 @@ export type AdminTeamDetailsData = {
     impact: number;
     presentation: number;
     totalScore: number;
-    verdict: "shortlisted" | "reviewed" | "rejected" | "pending";
+    verdict: "shortlisted" | "waitlist" | "rejected" | "reviewed" | "pending";
     remarks: string;
+    waitlistReason?: string;
     updatedAt: string;
   } | null;
 };
@@ -70,6 +71,12 @@ export function AdminTeamDetailsModal({ data, onClose, onSelectStudent }: Props)
             <Award className="h-3.5 w-3.5" /> Shortlisted
           </span>
         );
+      case "waitlist":
+        return (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 px-3 py-1 text-xs font-bold border border-amber-300">
+            <Clock className="h-3.5 w-3.5" /> Waitlist
+          </span>
+        );
       case "reviewed":
         return (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 px-3 py-1 text-xs font-bold border border-blue-300">
@@ -84,7 +91,7 @@ export function AdminTeamDetailsModal({ data, onClose, onSelectStudent }: Props)
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 px-3 py-1 text-xs font-bold border border-amber-300">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 px-3 py-1 text-xs font-bold border border-slate-300">
             <Clock className="h-3.5 w-3.5" /> Evaluation Pending
           </span>
         );
@@ -188,6 +195,18 @@ export function AdminTeamDetailsModal({ data, onClose, onSelectStudent }: Props)
                   <p className="text-base font-extrabold text-foreground mt-0.5">{evaluation.presentation} <span className="text-[10px] text-muted-foreground">/ 25</span></p>
                 </div>
               </div>
+
+              {/* Waitlist Reason (if present) */}
+              {evaluation.waitlistReason && (
+                <div className="rounded-lg border border-amber-300 dark:border-amber-900/60 bg-amber-50/70 dark:bg-amber-950/30 p-3.5 space-y-1">
+                  <p className="text-xs font-bold text-amber-950 dark:text-amber-200 uppercase tracking-wider flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5 text-amber-600" /> Waitlist Reason & Criteria
+                  </p>
+                  <p className="text-xs text-amber-900 dark:text-amber-100 leading-relaxed font-medium mt-0.5">
+                    {evaluation.waitlistReason}
+                  </p>
+                </div>
+              )}
 
               {/* Evaluator Remarks */}
               <div className="rounded-lg border border-border/60 bg-card p-3.5 space-y-1">

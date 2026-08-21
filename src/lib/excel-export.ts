@@ -249,6 +249,7 @@ export async function exportEvaluatorMasterReport(rows: {
     { header: "Presentation (/25)", key: "presentation", width: 16 },
     { header: "Total Score (/100)", key: "total", width: 16 },
     { header: "Verdict", key: "verdict", width: 16 },
+    { header: "Waitlist Reason", key: "waitlistReason", width: 35 },
     { header: "Evaluator Remarks", key: "remarks", width: 40 },
     { header: "Team Members", key: "membersList", width: 45 },
   ];
@@ -278,6 +279,7 @@ export async function exportEvaluatorMasterReport(rows: {
       presentation: evaluation?.presentation ?? "—",
       total: evaluation?.totalScore ?? "—",
       verdict: (evaluation?.verdict || "PENDING").toUpperCase(),
+      waitlistReason: evaluation?.waitlistReason || "—",
       remarks: evaluation?.remarks || "—",
       membersList: members.map((m) => `${m.fullName} (${m.department || "General"})`).join(", "),
     });

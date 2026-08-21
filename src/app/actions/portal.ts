@@ -741,8 +741,9 @@ export type EvaluationRecord = {
   impact: number;         // 0 - 25
   presentation: number;   // 0 - 25
   totalScore: number;     // 0 - 100
-  verdict: "shortlisted" | "reviewed" | "rejected" | "pending";
+  verdict: "shortlisted" | "waitlist" | "rejected" | "reviewed" | "pending";
   remarks: string;
+  waitlistReason?: string;
   updatedAt: string;
 };
 
@@ -755,7 +756,7 @@ export async function getEvaluations(): Promise<Record<string, EvaluationRecord>
 
   const { data, error } = await supabaseFast
     .from("evaluations")
-    .select("team_id, evaluator_id, evaluator_email, novelty, technical, impact, presentation, total_score, verdict, remarks, updated_at");
+    .select("team_id, evaluator_id, evaluator_email, novelty, technical, impact, presentation, total_score, verdict, remarks, waitlist_reason, updated_at");
 
   if (error) {
     console.warn("getEvaluations error:", error);
@@ -775,6 +776,7 @@ export async function getEvaluations(): Promise<Record<string, EvaluationRecord>
       totalScore: r.total_score,
       verdict: r.verdict as any,
       remarks: r.remarks || "",
+      waitlistReason: r.waitlist_reason || "",
       updatedAt: r.updated_at,
     };
   }
@@ -817,9 +819,14 @@ export async function saveTeamEvaluation(evalRecord: EvaluationRecord) {
   const presentation = Math.max(0, Math.min(25, Number(evalRecord.presentation) || 0));
   const totalScore = novelty + technical + impact + presentation;
 
-  const validVerdicts = ["shortlisted", "reviewed", "rejected", "pending"] as const;
-  const verdict = validVerdicts.includes(evalRecord.verdict) ? evalRecord.verdict : "reviewed";
+  const validVerdicts = ["shortlisted", "waitlist", "rejected", "reviewed", "pending"] as const;
+  const verdict = validVerdicts.includes(evalRecord.verdict) ? evalRecord.verdict : "rejected";
   const sanitizedRemarks = sanitizeText(evalRecord.remarks, 1000);
+  const sanitizedWaitlistReason = evalRecord.verdict === "waitlist" ? sanitizeText(evalRecord.waitlistReason, 1000) : null;
+
+  if (verdict === "waitlist" && (!sanitizedWaitlistReason || !sanitizedRemarks)) {
+    throw new Error("Both Waitlist Reason and Feedback Remarks are required when selecting Waitlist.");
+  }
 
   const evaluationPayload = {
     team_id: evalRecord.teamId,
@@ -832,6 +839,7 @@ export async function saveTeamEvaluation(evalRecord: EvaluationRecord) {
     total_score: totalScore,
     verdict,
     remarks: sanitizedRemarks,
+    waitlist_reason: sanitizedWaitlistReason,
     updated_at: new Date().toISOString(),
   };
 
