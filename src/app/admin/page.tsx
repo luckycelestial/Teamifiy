@@ -149,11 +149,35 @@ function AdminContent() {
   const unassignedCount = allProfiles.filter(
     (p) => !allMemberships.some((m) => m.userId === p.id),
   ).length;
+  const evaluatorCount = allProfiles.filter(
+    (p) => (p as ProfileItem).role === "evaluator",
+  ).length;
 
   const stats = [
-    { label: "Valid teams", value: valid, onClick: () => { setActiveTab("teams"); setFilterUnassigned(false); } },
-    { label: "Students registered", value: allProfiles.length, onClick: () => { setActiveTab("students"); setFilterUnassigned(false); } },
-    { label: "Faculties", value: unassignedCount, onClick: () => { setActiveTab("students"); setFilterUnassigned(true); } },
+    {
+      label: "Valid teams",
+      value: valid,
+      active: activeTab === "teams",
+      onClick: () => { setActiveTab("teams"); setFilterUnassigned(false); },
+    },
+    {
+      label: "Students registered",
+      value: allProfiles.length,
+      active: activeTab === "students" && !filterUnassigned,
+      onClick: () => { setActiveTab("students"); setFilterUnassigned(false); },
+    },
+    {
+      label: "Faculties",
+      value: unassignedCount,
+      active: activeTab === "students" && filterUnassigned,
+      onClick: () => { setActiveTab("students"); setFilterUnassigned(true); },
+    },
+    {
+      label: "Evaluators",
+      value: evaluatorCount,
+      active: activeTab === "assignments",
+      onClick: () => { setActiveTab("assignments"); setFilterUnassigned(false); },
+    },
   ];
 
   async function handleSetStatus(teamId: string, status: "approved" | "rejected" | "locked" | "forming") {
@@ -447,16 +471,22 @@ function AdminContent() {
       <main className="mx-auto max-w-7xl px-4 sm:px-6 py-5 sm:py-8">
 
         {/* Stats Grid */}
-        <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3">
+        <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3.5">
           {stats.map((s) => (
             <Card
               key={s.label}
               onClick={s.onClick}
-              className="shadow-card-soft cursor-pointer hover:border-navy/40 transition-colors"
+              className={`shadow-card-soft cursor-pointer transition-all border-2 ${
+                s.active
+                  ? "border-navy bg-navy/5 shadow-sm ring-1 ring-navy/20"
+                  : "border-border hover:border-navy/30 hover:bg-muted/30"
+              }`}
             >
               <CardContent className="p-3 sm:p-4">
-                <p className="text-xl sm:text-2xl font-extrabold">{s.value}</p>
-                <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-muted-foreground mt-0.5">
+                <p className={`text-xl sm:text-2xl font-extrabold ${s.active ? "text-navy" : "text-foreground"}`}>
+                  {s.value}
+                </p>
+                <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wide text-muted-foreground mt-0.5">
                   {s.label}
                 </p>
               </CardContent>
@@ -464,42 +494,21 @@ function AdminContent() {
           ))}
         </div>
 
-        {/* Tabs & Search Navigation */}
-        <div className="mt-6 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3.5 border-b border-border/60 pb-4">
-          <div className="flex flex-wrap gap-1.5 sm:gap-2">
-            <Button
-              variant={activeTab === "teams" ? "default" : "outline"}
-              size="sm"
-              onClick={() => { setActiveTab("teams"); setFilterUnassigned(false); }}
-              className={`text-xs h-8 sm:h-9 px-2.5 sm:px-3.5 ${activeTab === "teams" ? "bg-navy text-white" : ""}`}
-            >
-              Teams ({allTeams.length})
-            </Button>
-            <Button
-              variant={activeTab === "students" && !filterUnassigned ? "default" : "outline"}
-              size="sm"
-              onClick={() => { setActiveTab("students"); setFilterUnassigned(false); }}
-              className={`text-xs h-8 sm:h-9 px-2.5 sm:px-3.5 ${activeTab === "students" && !filterUnassigned ? "bg-navy text-white" : ""}`}
-            >
-              All Students ({allProfiles.length})
-            </Button>
-            <Button
-              variant={activeTab === "students" && filterUnassigned ? "default" : "outline"}
-              size="sm"
-              onClick={() => { setActiveTab("students"); setFilterUnassigned(true); }}
-              className={`text-xs h-8 sm:h-9 px-2.5 sm:px-3.5 ${activeTab === "students" && filterUnassigned ? "bg-navy text-white" : ""}`}
-            >
-              Without Team ({unassignedCount})
-            </Button>
-            <Button
-              variant={activeTab === "assignments" ? "default" : "outline"}
-              size="sm"
-              onClick={() => { setActiveTab("assignments"); setFilterUnassigned(false); }}
-              className={`text-xs h-8 sm:h-9 px-2.5 sm:px-3.5 gap-1.5 ${activeTab === "assignments" ? "bg-navy text-white" : ""}`}
-            >
-              <UserCheck className="h-3.5 w-3.5" />
-              Evaluator Assignments
-            </Button>
+        {/* Search & Export Toolbar */}
+        <div className="mt-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-b border-border/60 pb-4">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              Viewing:{" "}
+              <span className="text-foreground font-extrabold">
+                {activeTab === "teams"
+                  ? `Teams (${allTeams.length})`
+                  : activeTab === "students" && !filterUnassigned
+                  ? `All Students (${allProfiles.length})`
+                  : activeTab === "students" && filterUnassigned
+                  ? `Faculties / Without Team (${unassignedCount})`
+                  : `Evaluator Assignments (${allTeams.length})`}
+              </span>
+            </span>
           </div>
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
@@ -507,7 +516,7 @@ function AdminContent() {
               value={query}
               placeholder="Search student, department, team..."
               onChange={(e) => setQuery(e.target.value)}
-              className="bg-background h-8 sm:h-9 text-xs w-full sm:w-60"
+              className="bg-background h-8 sm:h-9 text-xs w-full sm:w-64"
             />
             <Button
               size="sm"
