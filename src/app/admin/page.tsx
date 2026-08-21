@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { FileSpreadsheet, UserCheck, Shuffle, X, UserPlus } from "lucide-react";
-import XLSX from "xlsx-js-style";
+import { exportAdminTeamFormationWorkbook } from "@/lib/excel-export";
 
 import { toRomanYear } from "@/lib/utils";
 import { StudentContactModal, StudentModalData } from "@/components/portal/StudentContactModal";
@@ -359,203 +359,19 @@ function AdminContent() {
     return upper;
   }
 
-  function applyWorksheetStyles(worksheet: XLSX.WorkSheet) {
-    const range = XLSX.utils.decode_range(worksheet["!ref"] || "A1");
-
-    const headerStyle = {
-      font: { name: "Cambria", sz: 12, bold: true, color: { rgb: "FFFFFF" } },
-      fill: { fgColor: { rgb: "1D4ED8" } }, // Royal Blue
-      alignment: { horizontal: "center", vertical: "center", wrapText: true },
-      border: {
-        top: { style: "thin", color: { rgb: "000000" } },
-        bottom: { style: "thin", color: { rgb: "000000" } },
-        left: { style: "thin", color: { rgb: "000000" } },
-        right: { style: "thin", color: { rgb: "000000" } },
-      },
-    };
-
-    const leaderRoleStyle = {
-      font: { name: "Cambria", sz: 12, bold: true, color: { rgb: "000000" } },
-      fill: { fgColor: { rgb: "EAB308" } }, // Brand Yellow
-      alignment: { horizontal: "center", vertical: "center" },
-      border: {
-        top: { style: "thin", color: { rgb: "999999" } },
-        bottom: { style: "thin", color: { rgb: "999999" } },
-        left: { style: "thin", color: { rgb: "999999" } },
-        right: { style: "thin", color: { rgb: "999999" } },
-      },
-    };
-
-    const regularStyle = {
-      font: { name: "Cambria", sz: 12, color: { rgb: "000000" } },
-      alignment: { horizontal: "center", vertical: "center" },
-      border: {
-        top: { style: "thin", color: { rgb: "CCCCCC" } },
-        bottom: { style: "thin", color: { rgb: "CCCCCC" } },
-        left: { style: "thin", color: { rgb: "CCCCCC" } },
-        right: { style: "thin", color: { rgb: "CCCCCC" } },
-      },
-    };
-
-    const boldCenterStyle = {
-      font: { name: "Cambria", sz: 12, bold: true, color: { rgb: "000000" } },
-      alignment: { horizontal: "center", vertical: "center" },
-      border: {
-        top: { style: "thin", color: { rgb: "CCCCCC" } },
-        bottom: { style: "thin", color: { rgb: "CCCCCC" } },
-        left: { style: "thin", color: { rgb: "CCCCCC" } },
-        right: { style: "thin", color: { rgb: "CCCCCC" } },
-      },
-    };
-
-    for (let r = range.s.r; r <= range.e.r; ++r) {
-      for (let c = range.s.c; c <= range.e.c; ++c) {
-        const cellAddress = XLSX.utils.encode_cell({ r, c });
-        if (!worksheet[cellAddress]) continue;
-
-        if (r === 0) {
-          worksheet[cellAddress].s = headerStyle;
-        } else {
-          const cellValue = String(worksheet[cellAddress].v || "");
-          if (cellValue === "Team Leader") {
-            worksheet[cellAddress].s = leaderRoleStyle;
-          } else if (c === 0 || c === 1) {
-            worksheet[cellAddress].s = boldCenterStyle;
-          } else {
-            worksheet[cellAddress].s = regularStyle;
-          }
-        }
-      }
+  async function handleExportExcel() {
+    try {
+      await exportAdminTeamFormationWorkbook(
+        filteredTeams,
+        filteredStudents,
+        teamByStudentId,
+        byId
+      );
+      toast.success("Exported styled Cambria 12pt Excel sheet (.xlsx)");
+    } catch (err) {
+      console.error("Export error:", err);
+      toast.error("Failed to export Excel report.");
     }
-  }
-
-  function handleExportExcel() {
-    const workbook = XLSX.utils.book_new();
-
-    // Sheet 1: Official SIH 2026 Team Formation Sheet (No Roll Number column)
-    const rows: (string | number)[][] = [
-      [
-        "S.No",
-        "Team Name",
-        "Members",
-        "Name of the Student",
-        "Year of Study",
-        "Department",
-        "Contact Number",
-        "Email ID",
-      ],
-    ];
-
-    const merges: XLSX.Range[] = [];
-
-    filteredTeams.forEach(({ team, members }, teamIdx) => {
-      const sno = teamIdx + 1;
-      const teamNameUpper = team.name.toUpperCase();
-      const leader = byId.get(team.leaderId);
-
-      const nonLeaderMembers = members.filter((m) => m.id !== team.leaderId);
-      const sortedMembers: (ProfileItem | undefined)[] = [
-        leader || members.find((m) => m.id === team.leaderId),
-        ...nonLeaderMembers,
-      ];
-
-      while (sortedMembers.length < 6) {
-        sortedMembers.push(undefined);
-      }
-
-      const startRowIndex = 1 + teamIdx * 6;
-
-      sortedMembers.slice(0, 6).forEach((m, memberIdx) => {
-        const memberRole = memberIdx === 0 ? "Team Leader" : `Member ${memberIdx + 1}`;
-
-        rows.push([
-          memberIdx === 0 ? sno : "",
-          memberIdx === 0 ? teamNameUpper : "",
-          memberRole,
-          m ? m.fullName.toUpperCase() : "-- NA --",
-          m ? toRomanYear(m.year) || "-- NA --" : "-- NA --",
-          m ? formatDept(m.department) : "-- NA --",
-          m ? m.phone || "-- NA --" : "-- NA --",
-          m ? m.email || "-- NA --" : "-- NA --",
-        ]);
-      });
-
-      merges.push({
-        s: { r: startRowIndex, c: 0 },
-        e: { r: startRowIndex + 5, c: 0 },
-      });
-      merges.push({
-        s: { r: startRowIndex, c: 1 },
-        e: { r: startRowIndex + 5, c: 1 },
-      });
-    });
-
-    const worksheet = XLSX.utils.aoa_to_sheet(rows);
-
-    worksheet["!merges"] = merges;
-    worksheet["!cols"] = [
-      { wch: 8 },  // S.No
-      { wch: 24 }, // Team Name
-      { wch: 16 }, // Members
-      { wch: 32 }, // Name of the Student
-      { wch: 16 }, // Year of Study
-      { wch: 16 }, // Department
-      { wch: 18 }, // Contact Number
-      { wch: 38 }, // Email ID
-    ];
-
-    applyWorksheetStyles(worksheet);
-
-    XLSX.utils.book_append_sheet(workbook, worksheet, "SIH 2026 Team Formation");
-
-    // Sheet 2: Registered Students Overview
-    const studentRows: (string | number)[][] = [
-      [
-        "S.No",
-        "Student Name",
-        "Year of Study",
-        "Department",
-        "Gender",
-        "Contact Number",
-        "Email ID",
-        "Assigned Team",
-        "Team Status",
-      ],
-    ];
-
-    filteredStudents.forEach((s, idx) => {
-      const team = teamByStudentId.get(s.id);
-      studentRows.push([
-        idx + 1,
-        s.fullName.toUpperCase(),
-        toRomanYear(s.year) || "-- NA --",
-        formatDept(s.department),
-        s.phone || "-- NA --",
-        s.email || "-- NA --",
-        team ? team.name.toUpperCase() : "UNASSIGNED",
-        team ? team.status.toUpperCase() : "NO TEAM",
-      ]);
-    });
-
-    const studentsSheet = XLSX.utils.aoa_to_sheet(studentRows);
-    studentsSheet["!cols"] = [
-      { wch: 8 },  // S.No
-      { wch: 32 }, // Student Name
-      { wch: 16 }, // Year of Study
-      { wch: 16 }, // Department
-      { wch: 12 }, // Gender
-      { wch: 18 }, // Contact Number
-      { wch: 38 }, // Email ID
-      { wch: 24 }, // Assigned Team
-      { wch: 16 }, // Team Status
-    ];
-
-    applyWorksheetStyles(studentsSheet);
-
-    XLSX.utils.book_append_sheet(workbook, studentsSheet, "Registered Students");
-
-    XLSX.writeFile(workbook, `SIH_2026_Team_Formation_(Responses).xlsx`);
-    toast.success(`Exported styled Cambria 12pt Excel sheet (.xlsx)`);
   }
 
   async function handleToggleRegistrations() {

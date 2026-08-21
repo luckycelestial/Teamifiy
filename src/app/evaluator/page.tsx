@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { FileSpreadsheet, Award, Star, CheckCircle, Clock, AlertTriangle, Sparkles, Search } from "lucide-react";
-import XLSX from "xlsx-js-style";
+import { exportEvaluatorMasterReport } from "@/lib/excel-export";
 import { toRomanYear } from "@/lib/utils";
 import { StudentContactModal, StudentModalData } from "@/components/portal/StudentContactModal";
 import { EvaluationModal, EvaluationTeamData } from "@/components/portal/EvaluationModal";
@@ -169,37 +169,12 @@ function EvaluatorContent() {
     }
   };
 
-  function handleExportExcel() {
+  async function handleExportExcel() {
     try {
-      const exportRows = rows.map(({ team, members, evaluation }, index) => {
-        const leader = members.find((m) => m.id === team.leaderId) || members[0];
-        return {
-          "S.No": index + 1,
-          "Team Name": team.name,
-          "Category": team.category || "General",
-          "Problem Statement": team.problemStatement || "N/A",
-          "Leader Name": leader?.fullName || "—",
-          "Leader Email": leader?.email || "—",
-          "Leader Phone": leader?.phone || "—",
-          "Novelty (/25)": evaluation?.novelty ?? "—",
-          "Technical Feasibility (/25)": evaluation?.technical ?? "—",
-          "Societal Impact (/25)": evaluation?.impact ?? "—",
-          "Presentation (/25)": evaluation?.presentation ?? "—",
-          "Total Score (/100)": evaluation?.totalScore ?? "—",
-          "Verdict": (evaluation?.verdict || "PENDING").toUpperCase(),
-          "Evaluator Remarks": evaluation?.remarks || "—",
-          "Members Count": `${members.length}/${TEAM_SIZE}`,
-          "Team Members": members.map((m) => `${m.fullName} (${m.department || "General"})`).join(", "),
-        };
-      });
-
-      const worksheet = XLSX.utils.json_to_sheet(exportRows);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Evaluation Master Sheet");
-      XLSX.writeFile(workbook, "SIH_2026_Master_Evaluation_Report.xlsx");
+      await exportEvaluatorMasterReport(rows);
       toast.success("Evaluation master spreadsheet exported!");
     } catch (err) {
-      console.error(err);
+      console.error("Export error:", err);
       toast.error("Failed to export Excel report.");
     }
   }
