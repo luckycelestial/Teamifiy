@@ -22,6 +22,7 @@ model Profile {
 
   memberships TeamMember[]
   assignments EvaluatorAssignment[]
+  evaluations Evaluation[]
 
   @@index([email])
   @@index([role])
@@ -39,8 +40,9 @@ model Team {
   status           String       @default("submitted")
   createdAt        DateTime     @default(now()) @map("created_at")
 
-  members TeamMember[]
+  members     TeamMember[]
   assignments EvaluatorAssignment[]
+  evaluations Evaluation[]
 
   @@index([leaderId])
   @@index([status])
@@ -78,6 +80,29 @@ model EvaluatorAssignment {
   @@index([teamId])
   @@index([evaluatorId])
   @@map("evaluator_assignments")
+}
+
+model Evaluation {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  teamId         String   @map("team_id")
+  evaluatorId    String   @map("evaluator_id")
+  evaluatorEmail String?  @map("evaluator_email")
+  novelty        Int
+  technical      Int
+  impact         Int
+  presentation   Int
+  totalScore     Int      @map("total_score")
+  verdict        String
+  remarks        String?
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
+
+  team      Team    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  evaluator Profile @relation(fields: [evaluatorId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, evaluatorId], name: "uq_team_evaluator")
+  @@index([teamId])
+  @@index([evaluatorId])
+  @@map("evaluations")
 }
 
 model PortalSetting {

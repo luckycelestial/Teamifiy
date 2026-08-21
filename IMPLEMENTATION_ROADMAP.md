@@ -9,7 +9,7 @@ This document details all technical enhancements, security hardenings, database 
 | Priority | Task | Category | Estimated Effort | Impact | Status |
 | :---: | :--- | :--- | :---: | :--- | :---: |
 | **P1** | Add Postgres Composite & Foreign-Key Indexes | Database | 1 hour | Critical query speedup under 1,600+ users | 🟢 Completed |
-| **P2** | Migrate `sih_evaluations` JSON to Relational Table | Database / Backend | 3 hours | Eliminates concurrent evaluation race conditions | 🟡 Ready to execute |
+| **P2** | Migrate `sih_evaluations` JSON to Relational Table | Database / Backend | 3 hours | Eliminates concurrent evaluation race conditions | 🟢 Completed |
 | **P3** | Replace Vulnerable `xlsx` with `exceljs` | Security / Supply Chain | 2 hours | Resolves high-severity npm audit CVEs | 🟡 Ready to execute |
 | **P4** | Implement Automated Server Action Test Suite | QA & Testing | 4 hours | Continuous regression prevention | 🟡 Ready to execute |
 | **P5** | Add Centralized Error Logging & Client Telemetry | Observability | 2 hours | Real-time crash diagnostics for evaluators | 🟡 Ready to execute |
@@ -226,6 +226,6 @@ npm install --save-dev vitest @testing-library/react
 - [x] Centralized XSS & query injection sanitization active (`src/lib/sanitize.ts`).
 - [x] TypeScript compilation check: `npx tsc --noEmit` exits **0**.
 - [x] Task 1: Supabase DB Indexes applied.
-- [ ] Task 2: Relational `evaluations` table created.
+- [x] Task 2: Relational `evaluations` table created.
 - [ ] Task 3: `exceljs` migration completed.
 - [ ] Task 4: Vitest test suite added to CI.

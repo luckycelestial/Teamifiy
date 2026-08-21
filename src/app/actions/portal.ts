@@ -753,13 +753,32 @@ export async function getEvaluations(): Promise<Record<string, EvaluationRecord>
     throw new Error("Unauthorized: evaluator or admin access required.");
   }
 
-  const { data } = await supabaseFast.from("portal_settings").select("value").eq("key", "sih_evaluations").maybeSingle();
-  if (!data || !data.value) return {};
-  try {
-    return JSON.parse(data.value);
-  } catch {
+  const { data, error } = await supabaseFast
+    .from("evaluations")
+    .select("team_id, evaluator_id, evaluator_email, novelty, technical, impact, presentation, total_score, verdict, remarks, updated_at");
+
+  if (error) {
+    console.warn("getEvaluations error:", error);
     return {};
   }
+
+  const map: Record<string, EvaluationRecord> = {};
+  for (const r of (data || [])) {
+    map[r.team_id] = {
+      teamId: r.team_id,
+      evaluatorId: r.evaluator_id,
+      evaluatorEmail: r.evaluator_email,
+      novelty: r.novelty,
+      technical: r.technical,
+      impact: r.impact,
+      presentation: r.presentation,
+      totalScore: r.total_score,
+      verdict: r.verdict as any,
+      remarks: r.remarks || "",
+      updatedAt: r.updated_at,
+    };
+  }
+  return map;
 }
 
 export async function saveTeamEvaluation(evalRecord: EvaluationRecord) {
@@ -769,16 +788,16 @@ export async function saveTeamEvaluation(evalRecord: EvaluationRecord) {
   if (!isEval) throw new Error("Unauthorized: evaluator access required.");
 
   // Security: Prevent IDOR by ensuring non-admin evaluators can only evaluate assigned teams
-  if (!isAdmin) {
-    const cleanEmail = (session.email || "").trim().toLowerCase().replace(/\s+/g, "");
-    let activeProfileId = session.id;
-    if (cleanEmail) {
-      const { data: pEmail } = await supabaseFast.from("profiles").select("id").eq("email", cleanEmail).limit(1);
-      if (pEmail && pEmail.length > 0 && pEmail[0]?.id) {
-        activeProfileId = pEmail[0].id;
-      }
+  const cleanEmail = (session.email || "").trim().toLowerCase().replace(/\s+/g, "");
+  let activeProfileId = session.id;
+  if (cleanEmail) {
+    const { data: pEmail } = await supabaseFast.from("profiles").select("id").eq("email", cleanEmail).limit(1);
+    if (pEmail && pEmail.length > 0 && pEmail[0]?.id) {
+      activeProfileId = pEmail[0].id;
     }
+  }
 
+  if (!isAdmin) {
     const { data: assignment } = await supabaseFast
       .from("evaluator_assignments")
       .select("id")
@@ -800,28 +819,31 @@ export async function saveTeamEvaluation(evalRecord: EvaluationRecord) {
 
   const validVerdicts = ["shortlisted", "reviewed", "rejected", "pending"] as const;
   const verdict = validVerdicts.includes(evalRecord.verdict) ? evalRecord.verdict : "reviewed";
+  const sanitizedRemarks = sanitizeText(evalRecord.remarks, 1000);
 
-  const current = await getEvaluations();
-  current[evalRecord.teamId] = {
-    teamId: evalRecord.teamId,
+  const evaluationPayload = {
+    team_id: evalRecord.teamId,
+    evaluator_id: activeProfileId || session.id,
+    evaluator_email: session.email,
     novelty,
     technical,
     impact,
     presentation,
-    totalScore,
+    total_score: totalScore,
     verdict,
-    remarks: (evalRecord.remarks || "").slice(0, 1000), // Prevent unbounded payload storage
-    evaluatorId: session.id,
-    evaluatorEmail: session.email,
-    updatedAt: new Date().toISOString(),
+    remarks: sanitizedRemarks,
+    updated_at: new Date().toISOString(),
   };
 
-  await supabaseFast.from("portal_settings").upsert({
-    key: "sih_evaluations",
-    value: JSON.stringify(current),
-  });
+  const { error: upsertErr } = await supabaseFast
+    .from("evaluations")
+    .upsert(evaluationPayload, { onConflict: "team_id,evaluator_id" });
 
-  return { success: true, evaluations: current };
+  if (upsertErr) {
+    throw new Error(`Evaluation save failed: ${upsertErr.message}`);
+  }
+
+  return { success: true };
 }
 
 // ─── Evaluator Assignment Management ─────────────────────────────────────────
