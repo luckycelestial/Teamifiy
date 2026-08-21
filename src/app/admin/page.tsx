@@ -16,6 +16,7 @@ import XLSX from "xlsx-js-style";
 
 import { toRomanYear } from "@/lib/utils";
 import { StudentContactModal, StudentModalData } from "@/components/portal/StudentContactModal";
+import { AdminTeamDetailsModal, AdminTeamDetailsData } from "@/components/portal/AdminTeamDetailsModal";
 
 const TEAM_SIZE = 6;
 
@@ -52,6 +53,7 @@ function AdminContent() {
   const [evaluations, setEvaluations] = useState<Record<string, EvaluationRecord>>({});
   const [assigningTeamId, setAssigningTeamId] = useState<string | null>(null);
   const [selectedStudent, setSelectedStudent] = useState<StudentModalData | null>(null);
+  const [selectedTeamDetails, setSelectedTeamDetails] = useState<AdminTeamDetailsData | null>(null);
   const [isAddFacultyOpen, setIsAddFacultyOpen] = useState(false);
 
   async function loadData() {
@@ -87,6 +89,40 @@ function AdminContent() {
 
   if (loading || !user) {
     return <p className="p-8 text-sm text-muted-foreground">Checking access…</p>;
+  }
+
+  function openTeamDetails(team: any, members: ProfileItem[]) {
+    const assignment = assignments.find((a) => a.teamId === team.id);
+    const evalRec = evaluations[team.id];
+    const evalProfile = assignment ? byId.get(assignment.evaluatorId) : null;
+    setSelectedTeamDetails({
+      team: {
+        id: team.id,
+        name: team.name,
+        psNumber: team.psNumber,
+        theme: team.theme,
+        problemStatement: team.problemStatement,
+        category: team.category,
+        leaderId: team.leaderId,
+        status: team.status,
+      },
+      members: members.map((m) => ({
+        id: m.id,
+        fullName: m.fullName,
+        email: m.email,
+        department: m.department,
+        year: m.year,
+        phone: m.phone,
+        isLeader: m.id === team.leaderId,
+      })),
+      assignment: assignment ? {
+        evaluatorId: assignment.evaluatorId,
+        evaluatorName: evalProfile?.fullName || "Assigned Faculty",
+        evaluatorEmail: evalProfile?.email || undefined,
+        evaluatorDept: evalProfile?.department || undefined,
+      } : null,
+      evaluation: evalRec || null,
+    });
   }
 
   if (!data?.isAdmin) {
@@ -633,7 +669,20 @@ function AdminContent() {
                         <tr key={team.id} className="hover:bg-muted/30 transition-colors align-top">
                           {/* Team name + lead */}
                           <td className="px-4 py-3 min-w-[160px]">
-                            <p className="font-bold text-foreground">{team.name}</p>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span
+                                onClick={() => openTeamDetails(team, members)}
+                                className="font-bold text-foreground hover:text-primary hover:underline cursor-pointer transition-colors"
+                                title="Click to view full team details, score & evaluator remarks"
+                              >
+                                {team.name}
+                              </span>
+                              {team.category && (
+                                <span className="text-[11px] font-normal text-slate-400 dark:text-slate-500 uppercase tracking-wide">
+                                  {team.category}
+                                </span>
+                              )}
+                            </div>
                             <p className="text-xs text-muted-foreground mt-0.5">
                               Lead: {byId.get(team.leaderId)?.fullName ?? "—"}
                             </p>
@@ -824,7 +873,7 @@ function AdminContent() {
                             </td>
                           </tr>
                         ) : (
-                          filteredTeams.map(({ team }) => {
+                          filteredTeams.map(({ team, members }) => {
                             const assignment = assignmentByTeam.get(team.id);
                             const leader = byId.get(team.leaderId);
                             return (
@@ -832,10 +881,16 @@ function AdminContent() {
 
                                 {/* Team Name */}
                                 <td className="px-4 py-3 font-semibold text-foreground">
-                                  <div className="flex items-center gap-1.5">
-                                    <span>{team.name}</span>
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span
+                                      onClick={() => openTeamDetails(team, members)}
+                                      className="hover:text-primary hover:underline cursor-pointer transition-colors"
+                                      title="Click to view full team details, score & evaluator remarks"
+                                    >
+                                      {team.name}
+                                    </span>
                                     {team.category && (
-                                      <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground uppercase">
+                                      <span className="text-[11px] font-normal text-slate-400 dark:text-slate-500 uppercase tracking-wide">
                                         {team.category}
                                       </span>
                                     )}
@@ -935,6 +990,12 @@ function AdminContent() {
       <StudentContactModal
         student={selectedStudent}
         onClose={() => setSelectedStudent(null)}
+      />
+
+      <AdminTeamDetailsModal
+        data={selectedTeamDetails}
+        onClose={() => setSelectedTeamDetails(null)}
+        onSelectStudent={(student) => setSelectedStudent(student)}
       />
 
       <AddFacultyModal
