@@ -238,84 +238,69 @@ export function TeamPanel({
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-border text-left font-semibold text-muted-foreground">
-                  <th className="py-2.5">Member</th>
-                  <th className="py-2.5">Role</th>
-                  <th className="py-2.5">Department</th>
-                  <th className="py-2.5">Year</th>
-                  <th className="py-2.5">Email</th>
-                  {open && isLeader && <th className="py-2.5 text-right">Actions</th>}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/60">
-                {memberProfiles.map((p) => {
-                  const m = members.find((x) => x.user_id === p.id);
-                  const leader = m?.is_leader;
-                  return (
-                    <tr key={p.id} className="hover:bg-muted/40 transition-colors">
-                      <td className="py-2.5 font-medium text-foreground">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedStudent({
-                            fullName: p.full_name,
-                            email: p.email,
-                            department: p.department,
-                            year: p.year,
-                            phone: p.phone,
-                            isLeader: leader,
-                          })}
-                          className="hover:underline text-left cursor-pointer font-bold text-navy"
-                        >
-                          {p.full_name}
-                        </button>
-                      </td>
-                      <td className="py-2.5">
-                        {leader ? (
-                          <span className="rounded bg-amber-500/10 text-amber-900 border border-amber-500/30 px-2 py-0.5 font-bold text-[10px]">
-                            Leader
+          <div className="space-y-2">
+            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Members</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {members.map((m) => {
+                const p = memberProfiles.find((mp) => mp.id === m.user_id);
+                return (
+                  <div
+                    key={m.id}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-background p-3.5 hover:border-navy/40 transition-all shadow-2xs"
+                  >
+                    <div
+                      onClick={() => p && setSelectedStudent({
+                        fullName: p.full_name,
+                        email: p.email,
+                        department: p.department,
+                        year: p.year,
+                        phone: p.phone,
+                        isLeader: m.is_leader,
+                      })}
+                      title="Click to view contact details"
+                      className="cursor-pointer group flex-1"
+                    >
+                      <p className="font-bold text-foreground group-hover:text-navy dark:group-hover:text-sky-400 group-hover:underline transition-colors flex items-center gap-2 text-sm">
+                        <span>{p?.full_name?.toUpperCase() || "STUDENT"}</span>
+                        {m.is_leader && (
+                          <span className="rounded-md bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300/60 px-2 py-0.5 text-[10px] font-black uppercase">
+                            Lead
                           </span>
-                        ) : (
-                          <span className="text-muted-foreground">Member</span>
                         )}
-                      </td>
-                      <td className="py-2.5 text-muted-foreground">{p.department || "—"}</td>
-                      <td className="py-2.5 text-muted-foreground">{toRomanYear(p.year) || "—"}</td>
-                      <td className="py-2.5 text-muted-foreground font-mono text-[11px]">{p.email}</td>
-                      {open && isLeader && (
-                        <td className="py-2.5 text-right">
-                          {!leader && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 h-7 text-xs"
-                              disabled={isPending}
-                              onClick={() => {
-                                if (confirm(`Remove ${p.full_name} from team?`)) {
-                                  startTransition(async () => {
-                                    try {
-                                      if (m) await removeMember(m.id);
-                                      toast.success("Member removed");
-                                      router.refresh();
-                                    } catch (err: unknown) {
-                                      toast.error(err instanceof Error ? err.message : "Failed to remove");
-                                    }
-                                  });
-                                }
-                              }}
-                            >
-                              Remove
-                            </Button>
-                          )}
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5 font-medium">
+                        {[p?.department, toRomanYear(p?.year)]
+                          .filter(Boolean)
+                          .join(" · ") || "Profile incomplete"}
+                      </p>
+                    </div>
+                    {isLeader && open && !m.is_leader && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 h-7 text-xs font-semibold"
+                        disabled={isPending}
+                        onClick={() => {
+                          if (confirm(`Remove ${p?.full_name} from team?`)) {
+                            startTransition(async () => {
+                              try {
+                                await removeMember(m.id);
+                                toast.success("Member removed.");
+                                router.refresh();
+                              } catch (err: unknown) {
+                                toast.error(err instanceof Error ? err.message : "Failed to remove member.");
+                              }
+                            });
+                          }
+                        }}
+                      >
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           {issues.length > 0 && (
