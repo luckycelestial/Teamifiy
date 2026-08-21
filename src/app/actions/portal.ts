@@ -648,12 +648,53 @@ export async function getEvaluations(): Promise<Record<string, EvaluationRecord>
 
 export async function saveTeamEvaluation(evalRecord: EvaluationRecord) {
   const session = await requireAuth();
+  const isAdmin = await checkIsAdmin(session.id, session.email);
   const isEval = await checkIsEvaluator(session.id, session.email);
   if (!isEval) throw new Error("Unauthorized: evaluator access required.");
 
+  // Security: Prevent IDOR by ensuring non-admin evaluators can only evaluate assigned teams
+  if (!isAdmin) {
+    const cleanEmail = (session.email || "").trim().toLowerCase().replace(/\s+/g, "");
+    let activeProfileId = session.id;
+    if (cleanEmail) {
+      const { data: pEmail } = await supabaseFast.from("profiles").select("id").eq("email", cleanEmail).limit(1);
+      if (pEmail && pEmail.length > 0 && pEmail[0]?.id) {
+        activeProfileId = pEmail[0].id;
+      }
+    }
+
+    const { data: assignment } = await supabaseFast
+      .from("evaluator_assignments")
+      .select("id")
+      .eq("team_id", evalRecord.teamId)
+      .in("evaluator_id", [session.id, activeProfileId])
+      .limit(1);
+
+    if (!assignment || assignment.length === 0) {
+      throw new Error("Unauthorized: you are not assigned to evaluate this team.");
+    }
+  }
+
+  // Security: Defensive score sanitization & range clamping (0 - 25 each)
+  const novelty = Math.max(0, Math.min(25, Number(evalRecord.novelty) || 0));
+  const technical = Math.max(0, Math.min(25, Number(evalRecord.technical) || 0));
+  const impact = Math.max(0, Math.min(25, Number(evalRecord.impact) || 0));
+  const presentation = Math.max(0, Math.min(25, Number(evalRecord.presentation) || 0));
+  const totalScore = novelty + technical + impact + presentation;
+
+  const validVerdicts = ["shortlisted", "reviewed", "rejected", "pending"] as const;
+  const verdict = validVerdicts.includes(evalRecord.verdict) ? evalRecord.verdict : "reviewed";
+
   const current = await getEvaluations();
   current[evalRecord.teamId] = {
-    ...evalRecord,
+    teamId: evalRecord.teamId,
+    novelty,
+    technical,
+    impact,
+    presentation,
+    totalScore,
+    verdict,
+    remarks: (evalRecord.remarks || "").slice(0, 1000), // Prevent unbounded payload storage
     evaluatorId: session.id,
     evaluatorEmail: session.email,
     updatedAt: new Date().toISOString(),
