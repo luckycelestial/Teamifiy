@@ -21,7 +21,10 @@ model Profile {
   updatedAt   DateTime     @updatedAt @map("updated_at")
 
   memberships TeamMember[]
+  assignments EvaluatorAssignment[]
 
+  @@index([email])
+  @@index([role])
   @@map("profiles")
 }
 
@@ -37,7 +40,11 @@ model Team {
   createdAt        DateTime     @default(now()) @map("created_at")
 
   members TeamMember[]
+  assignments EvaluatorAssignment[]
 
+  @@index([leaderId])
+  @@index([status])
+  @@index([psNumber])
   @@map("teams")
 }
 
@@ -52,7 +59,25 @@ model TeamMember {
   user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId])
+  @@index([teamId])
+  @@index([userId])
+  @@index([isLeader])
   @@map("team_members")
+}
+
+model EvaluatorAssignment {
+  id          String   @id @default(uuid())
+  teamId      String   @unique @map("team_id")
+  evaluatorId String   @map("evaluator_id")
+  assignedBy  String?  @map("assigned_by")
+  assignedAt  DateTime @default(now()) @map("assigned_at")
+
+  team      Team    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  evaluator Profile @relation(fields: [evaluatorId], references: [id], onDelete: Cascade)
+
+  @@index([teamId])
+  @@index([evaluatorId])
+  @@map("evaluator_assignments")
 }
 
 model PortalSetting {
