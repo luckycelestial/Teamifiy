@@ -149,36 +149,82 @@ function AdminContent() {
   const unassignedCount = allProfiles.filter(
     (p) => !allMemberships.some((m) => m.userId === p.id),
   ).length;
-  const evaluatorCount = allProfiles.filter(
+  const evaluatorProfiles = allProfiles.filter(
     (p) => (p as ProfileItem).role === "evaluator",
-  ).length;
+  );
+  const evaluatorCount = evaluatorProfiles.length;
+  const assignedCount = assignments.length;
+  const unassignedTeamCount = allTeams.length - assignedCount;
+  const shortlistedCount = Object.values(evaluations).filter((e) => e.verdict === "shortlisted").length;
 
-  const stats = [
-    {
-      label: "Valid teams",
-      value: valid,
-      active: activeTab === "teams",
-      onClick: () => { setActiveTab("teams"); setFilterUnassigned(false); },
-    },
-    {
-      label: "Students registered",
-      value: allProfiles.length,
-      active: activeTab === "students" && !filterUnassigned,
-      onClick: () => { setActiveTab("students"); setFilterUnassigned(false); },
-    },
-    {
-      label: "Faculties",
-      value: unassignedCount,
-      active: activeTab === "students" && filterUnassigned,
-      onClick: () => { setActiveTab("students"); setFilterUnassigned(true); },
-    },
-    {
-      label: "Evaluators",
-      value: evaluatorCount,
-      active: activeTab === "assignments",
-      onClick: () => { setActiveTab("assignments"); setFilterUnassigned(false); },
-    },
-  ];
+  const stats = activeTab === "assignments"
+    ? [
+        {
+          label: "Valid teams",
+          value: valid,
+          active: false,
+          color: "",
+          onClick: () => { setActiveTab("teams"); setFilterUnassigned(false); },
+        },
+        {
+          label: "Evaluators",
+          value: evaluatorCount,
+          active: true,
+          color: "",
+          onClick: () => { setActiveTab("assignments"); setFilterUnassigned(false); },
+        },
+        {
+          label: "Teams Assigned",
+          value: assignedCount,
+          active: false,
+          color: "text-emerald-600",
+          onClick: () => { setActiveTab("assignments"); setFilterUnassigned(false); },
+        },
+        {
+          label: "Unassigned Teams",
+          value: unassignedTeamCount,
+          active: false,
+          color: "text-amber-600",
+          onClick: () => { setActiveTab("assignments"); setFilterUnassigned(false); },
+        },
+        {
+          label: "Shortlisted",
+          value: shortlistedCount,
+          active: false,
+          color: "text-primary",
+          onClick: () => { setActiveTab("assignments"); setFilterUnassigned(false); },
+        },
+      ]
+    : [
+        {
+          label: "Valid teams",
+          value: valid,
+          active: activeTab === "teams",
+          color: "",
+          onClick: () => { setActiveTab("teams"); setFilterUnassigned(false); },
+        },
+        {
+          label: "Students registered",
+          value: allProfiles.length,
+          active: activeTab === "students" && !filterUnassigned,
+          color: "",
+          onClick: () => { setActiveTab("students"); setFilterUnassigned(false); },
+        },
+        {
+          label: "Faculties",
+          value: unassignedCount,
+          active: activeTab === "students" && filterUnassigned,
+          color: "",
+          onClick: () => { setActiveTab("students"); setFilterUnassigned(true); },
+        },
+        {
+          label: "Evaluators",
+          value: evaluatorCount,
+          active: false,
+          color: "",
+          onClick: () => { setActiveTab("assignments"); setFilterUnassigned(false); },
+        },
+      ];
 
   async function handleSetStatus(teamId: string, status: "approved" | "rejected" | "locked" | "forming") {
     try {
@@ -471,7 +517,7 @@ function AdminContent() {
       <main className="mx-auto max-w-7xl px-4 sm:px-6 py-5 sm:py-8">
 
         {/* Stats Grid */}
-        <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3.5">
+        <div className={`mt-5 grid gap-2.5 sm:gap-3.5 ${activeTab === "assignments" ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5" : "grid-cols-2 sm:grid-cols-4"}`}>
           {stats.map((s) => (
             <Card
               key={s.label}
@@ -483,7 +529,7 @@ function AdminContent() {
               }`}
             >
               <CardContent className="p-3 sm:p-4">
-                <p className={`text-xl sm:text-2xl font-extrabold ${s.active ? "text-navy" : "text-foreground"}`}>
+                <p className={`text-xl sm:text-2xl font-extrabold ${s.color ? s.color : s.active ? "text-navy" : "text-foreground"}`}>
                   {s.value}
                 </p>
                 <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wide text-muted-foreground mt-0.5">
@@ -719,59 +765,9 @@ function AdminContent() {
           {activeTab === "assignments" && (() => {
             const evaluatorProfiles = allProfiles.filter((p) => (p as ProfileItem).role === "evaluator");
             const assignmentByTeam = new Map(assignments.map((a) => [a.teamId, a]));
-            const assignedCount = assignments.length;
-            const unassignedTeamCount = allTeams.length - assignedCount;
-            const shortlistedCount = Object.values(evaluations).filter((e) => e.verdict === "shortlisted").length;
 
             return (
               <div className="space-y-4">
-                {/* Evaluator summary row */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <Card className="shadow-card-soft">
-                    <CardContent className="p-3 sm:p-4">
-                      <p className="text-xl font-extrabold">{evaluatorProfiles.length}</p>
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mt-0.5">Evaluators</p>
-                    </CardContent>
-                  </Card>
-                  <Card className="shadow-card-soft">
-                    <CardContent className="p-3 sm:p-4">
-                      <p className="text-xl font-extrabold text-emerald-600">{assignedCount}</p>
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mt-0.5">Teams Assigned</p>
-                    </CardContent>
-                  </Card>
-                  <Card className="shadow-card-soft">
-                    <CardContent className="p-3 sm:p-4">
-                      <p className="text-xl font-extrabold text-amber-600">{unassignedTeamCount}</p>
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mt-0.5">Unassigned Teams</p>
-                    </CardContent>
-                  </Card>
-                  <Card className="shadow-card-soft">
-                    <CardContent className="p-3 sm:p-4">
-                      <p className="text-xl font-extrabold text-primary">{shortlistedCount}</p>
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mt-0.5">⭐ Shortlisted</p>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Auto-assign bar */}
-                <div className="flex items-center justify-between rounded-xl border border-border bg-muted/30 px-4 py-3">
-                  <div>
-                    <p className="text-sm font-bold text-foreground">Auto-Distribute Unassigned Teams</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Round-robin: {unassignedTeamCount} unassigned teams → {evaluatorProfiles.length} evaluators
-                    </p>
-                  </div>
-                  <Button
-                    size="sm"
-                    onClick={handleAutoAssign}
-                    disabled={unassignedTeamCount === 0 || evaluatorProfiles.length === 0}
-                    className="bg-navy hover:bg-navy/90 text-white text-xs font-bold gap-1.5 px-4 shadow-xs"
-                  >
-                    <Shuffle className="h-3.5 w-3.5" />
-                    Auto-Assign
-                  </Button>
-                </div>
-
                 {/* Teams assignment table */}
                 <Card className="shadow-card-soft overflow-hidden">
                   <div className="overflow-x-auto">
