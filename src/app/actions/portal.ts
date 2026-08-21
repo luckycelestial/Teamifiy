@@ -109,6 +109,52 @@ export async function updateUserRole(targetUserId: string, newRole: "admin" | "e
   return { success: true };
 }
 
+export async function addFacultyProfile(data: {
+  fullName: string;
+  email: string;
+  department?: string;
+  phone?: string;
+  role?: "evaluator" | "admin" | "student";
+}) {
+  const session = await requireAuth();
+  const isAdmin = await checkIsAdmin(session.id, session.email);
+  if (!isAdmin) {
+    throw new Error("Unauthorized: admin access required to add faculty.");
+  }
+
+  const cleanEmail = data.email.trim().toLowerCase();
+  const cleanName = data.fullName.trim();
+  if (!cleanEmail || !cleanName) {
+    throw new Error("Full name and email are required.");
+  }
+
+  const { data: existing } = await supabaseFast
+    .from("profiles")
+    .select("id, email")
+    .eq("email", cleanEmail)
+    .maybeSingle();
+
+  if (existing) {
+    throw new Error(`A profile with email ${cleanEmail} already exists.`);
+  }
+
+  const newId = `faculty_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const role = data.role || "evaluator";
+
+  const { error } = await supabaseFast.from("profiles").insert({
+    id: newId,
+    full_name: cleanName,
+    email: cleanEmail,
+    department: data.department?.trim() || null,
+    phone: data.phone?.trim() || null,
+    role: role,
+    year: null,
+  });
+
+  if (error) throw new Error(`Failed to create faculty: ${error.message}`);
+  return { success: true, id: newId };
+}
+
 // ─── Profile mutations ────────────────────────────────────────────────────────
 
 export async function updateProfile(userId: string, data: Partial<ProfileData>) {

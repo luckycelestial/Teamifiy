@@ -4,14 +4,14 @@ import { useEffect, useState, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { getDashboardData, getAdminDashboardData, updateTeamStatus, rolloverAcademicYear, toggleRegistrations, updateUserRole, getAllAssignments, assignTeamToEvaluator, unassignTeam, autoAssignTeams, getEvaluations, type EvaluationRecord, type EvaluatorAssignment } from "@/app/actions/portal";
+import { getDashboardData, getAdminDashboardData, updateTeamStatus, rolloverAcademicYear, toggleRegistrations, updateUserRole, addFacultyProfile, getAllAssignments, assignTeamToEvaluator, unassignTeam, autoAssignTeams, getEvaluations, type EvaluationRecord, type EvaluatorAssignment } from "@/app/actions/portal";
 import { PortalHeader } from "@/components/portal/PortalHeader";
 import { StatusBadge } from "@/components/portal/StatusBadge";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { FileSpreadsheet, UserCheck, Shuffle, X } from "lucide-react";
+import { FileSpreadsheet, UserCheck, Shuffle, X, UserPlus } from "lucide-react";
 import XLSX from "xlsx-js-style";
 
 import { toRomanYear } from "@/lib/utils";
@@ -52,6 +52,7 @@ function AdminContent() {
   const [evaluations, setEvaluations] = useState<Record<string, EvaluationRecord>>({});
   const [assigningTeamId, setAssigningTeamId] = useState<string | null>(null);
   const [selectedStudent, setSelectedStudent] = useState<StudentModalData | null>(null);
+  const [isAddFacultyOpen, setIsAddFacultyOpen] = useState(false);
 
   async function loadData() {
     try {
@@ -586,6 +587,16 @@ function AdminContent() {
               onChange={(e) => setQuery(e.target.value)}
               className="bg-background h-8 sm:h-9 text-xs w-full sm:w-64"
             />
+            {activeTab === "students" && filterUnassigned && (
+              <Button
+                size="sm"
+                onClick={() => setIsAddFacultyOpen(true)}
+                className="bg-navy hover:bg-navy/90 text-white font-semibold text-xs gap-1.5 h-8 sm:h-9 px-3.5 shadow-xs w-full sm:w-auto justify-center"
+              >
+                <UserPlus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                Add Faculty
+              </Button>
+            )}
             <Button
               size="sm"
               onClick={handleExportExcel}
@@ -718,23 +729,24 @@ function AdminContent() {
               )}
             </Card>
           ) : activeTab === "students" ? (
-            /* Registered Students Table View */
+            /* Registered Students / Faculties Table View */
             <Card className="shadow-card-soft overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead className="bg-muted/60 text-xs uppercase font-semibold text-muted-foreground border-b border-border">
                     <tr>
-                      <th className="px-4 py-3">Student Name</th>
-                      <th className="px-4 py-3">Dept &amp; Year</th>
+                      <th className="px-4 py-3">{filterUnassigned ? "Faculty / Staff Name" : "Student Name"}</th>
+                      <th className="px-4 py-3">{filterUnassigned ? "Dept / Designation" : "Dept & Year"}</th>
                       <th className="px-4 py-3">Phone</th>
                       <th className="px-4 py-3">Team Status</th>
+                      {filterUnassigned && <th className="px-4 py-3">Role</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
                     {filteredStudents.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
-                          No registered students match this filter.
+                        <td colSpan={filterUnassigned ? 5 : 4} className="px-4 py-8 text-center text-muted-foreground">
+                          {filterUnassigned ? "No faculties or unassigned profiles match this filter." : "No registered students match this filter."}
                         </td>
                       </tr>
                     ) : (
@@ -761,6 +773,19 @@ function AdminContent() {
                                 </span>
                               )}
                             </td>
+                            {filterUnassigned && (
+                              <td className="px-4 py-3">
+                                <select
+                                  value={(s as ProfileItem).role || "student"}
+                                  onChange={(e) => handleRoleChange(s.id, e.target.value as "admin" | "evaluator" | "student")}
+                                  className="h-7 text-xs rounded border border-border bg-background px-2 font-semibold text-foreground cursor-pointer"
+                                >
+                                  <option value="student">Student / Staff</option>
+                                  <option value="evaluator">Evaluator</option>
+                                  <option value="admin">Admin</option>
+                                </select>
+                              </td>
+                            )}
                           </tr>
                         );
                       })
@@ -911,6 +936,163 @@ function AdminContent() {
         student={selectedStudent}
         onClose={() => setSelectedStudent(null)}
       />
+
+      <AddFacultyModal
+        isOpen={isAddFacultyOpen}
+        onClose={() => setIsAddFacultyOpen(false)}
+        onSuccess={loadData}
+      />
+    </div>
+  );
+}
+
+function AddFacultyModal({
+  isOpen,
+  onClose,
+  onSuccess,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [department, setDepartment] = useState("");
+  const [phone, setPhone] = useState("");
+  const [role, setRole] = useState<"evaluator" | "admin" | "student">("evaluator");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || !email.trim()) {
+      toast.error("Please provide both full name and institutional email.");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      await addFacultyProfile({
+        fullName: name.trim(),
+        email: email.trim(),
+        department: department.trim(),
+        phone: phone.trim(),
+        role,
+      });
+      toast.success("Faculty member registered successfully!");
+      setName("");
+      setEmail("");
+      setDepartment("");
+      setPhone("");
+      setRole("evaluator");
+      onSuccess();
+      onClose();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to add faculty.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+      <div className="relative w-full max-w-md bg-background rounded-2xl border border-border shadow-2xl overflow-hidden p-6 space-y-4">
+        <div className="flex items-center justify-between border-b border-border pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="h-9 w-9 rounded-xl bg-navy/10 text-navy flex items-center justify-center">
+              <UserPlus className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="font-extrabold text-base text-foreground">Add New Faculty</h3>
+              <p className="text-xs text-muted-foreground">Register faculty or evaluator account</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="h-7 w-7 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-3.5 pt-1">
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+              Full Name <span className="text-rose-500">*</span>
+            </label>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Dr. Ramesh Kumar"
+              required
+              className="text-xs h-9 bg-background"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+              Institutional Email <span className="text-rose-500">*</span>
+            </label>
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="e.g. ramesh.k@sece.ac.in"
+              required
+              className="text-xs h-9 bg-background"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2.5">
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                Department / Cell
+              </label>
+              <Input
+                value={department}
+                onChange={(e) => setDepartment(e.target.value)}
+                placeholder="e.g. CSE / Innovation"
+                className="text-xs h-9 bg-background"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                Contact Phone
+              </label>
+              <Input
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="e.g. 9876543210"
+                className="text-xs h-9 bg-background"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+              Assign Role <span className="text-rose-500">*</span>
+            </label>
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value as "evaluator" | "admin" | "student")}
+              className="w-full h-9 rounded-md border border-border bg-background px-3 text-xs font-semibold text-foreground cursor-pointer"
+            >
+              <option value="evaluator">Evaluator (can review &amp; score assigned teams)</option>
+              <option value="admin">Admin (full console access)</option>
+              <option value="student">Faculty / Staff</option>
+            </select>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-border mt-4">
+            <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={isSubmitting} className="text-xs">
+              Cancel
+            </Button>
+            <Button type="submit" size="sm" disabled={isSubmitting || !name.trim() || !email.trim()} className="bg-navy hover:bg-navy/90 text-white text-xs font-bold px-4">
+              {isSubmitting ? "Adding…" : "Add Faculty"}
+            </Button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
