@@ -121,13 +121,35 @@ function AdminContent() {
     return { team, members, issues: teamIssues(members) };
   });
 
+  const assignmentByTeam = new Map(assignments.map((a) => [a.teamId, a]));
+
   const filteredTeams = rows.filter(({ team, members }) => {
     const q = query.trim().toLowerCase();
     if (!q) return true;
+    const assignment = assignmentByTeam.get(team.id);
+    const assignedEval = assignment ? byId.get(assignment.evaluatorId) : null;
+    const leader = byId.get(team.leaderId);
+
     return (
       team.name.toLowerCase().includes(q) ||
       (team.category ?? "").toLowerCase().includes(q) ||
-      members.some((m) => m.fullName.toLowerCase().includes(q))
+      (team.psNumber ?? "").toLowerCase().includes(q) ||
+      (team.theme ?? "").toLowerCase().includes(q) ||
+      (team.problemStatement ?? "").toLowerCase().includes(q) ||
+      Boolean(leader && (
+        leader.fullName.toLowerCase().includes(q) ||
+        (leader.email ?? "").toLowerCase().includes(q) ||
+        (leader.department ?? "").toLowerCase().includes(q)
+      )) ||
+      Boolean(assignedEval && (
+        assignedEval.fullName.toLowerCase().includes(q) ||
+        (assignedEval.email ?? "").toLowerCase().includes(q)
+      )) ||
+      members.some((m) =>
+        m.fullName.toLowerCase().includes(q) ||
+        (m.email ?? "").toLowerCase().includes(q) ||
+        (m.department ?? "").toLowerCase().includes(q)
+      )
     );
   });
 
@@ -771,90 +793,111 @@ function AdminContent() {
                 {/* Teams assignment table */}
                 <Card className="shadow-card-soft overflow-hidden">
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm min-w-[600px]">
+                    <table className="w-full text-left text-sm min-w-[700px]">
                       <thead className="bg-muted/60 text-xs uppercase font-semibold text-muted-foreground border-b border-border">
                         <tr>
                           <th className="px-4 py-3">Team Name</th>
+                          <th className="px-4 py-3">PS Number</th>
                           <th className="px-4 py-3">Team Lead</th>
                           <th className="px-4 py-3">Dept &amp; Year</th>
                           <th className="px-4 py-3">Assigned Evaluator</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border">
-                        {allTeams.map((team) => {
-                          const assignment = assignmentByTeam.get(team.id);
-                          const leader = byId.get(team.leaderId);
-                          return (
-                            <tr key={team.id} className="hover:bg-muted/30 transition-colors">
+                        {filteredTeams.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                              No teams match this search query.
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredTeams.map(({ team }) => {
+                            const assignment = assignmentByTeam.get(team.id);
+                            const leader = byId.get(team.leaderId);
+                            return (
+                              <tr key={team.id} className="hover:bg-muted/30 transition-colors">
 
-                              {/* Team Name */}
-                              <td className="px-4 py-3">
-                                <span className="font-bold text-foreground">{team.name}</span>
-                                {team.category && (
-                                  <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground uppercase">
-                                    {team.category}
-                                  </span>
-                                )}
-                              </td>
-
-                              {/* Team Lead pill */}
-                              <td className="px-4 py-3">
-                                {leader ? (
-                                  <span className="inline-flex items-center gap-1.5 rounded-full bg-navy/10 border border-navy/20 px-2.5 py-1 text-xs font-semibold text-navy">
-                                    <span className="h-1.5 w-1.5 rounded-full bg-navy shrink-0" />
-                                    {leader.fullName}
-                                  </span>
-                                ) : (
-                                  <span className="text-xs text-muted-foreground italic">—</span>
-                                )}
-                              </td>
-
-                              {/* Dept & Year */}
-                              <td className="px-4 py-3 text-sm text-foreground">
-                                {leader ? (
-                                  <>
-                                    <span className="font-medium">{formatDept(leader.department)}</span>
-                                    {leader.year && (
-                                      <span className="text-muted-foreground"> · {toRomanYear(leader.year)}</span>
+                                {/* Team Name */}
+                                <td className="px-4 py-3 font-semibold text-foreground">
+                                  <div className="flex items-center gap-1.5">
+                                    <span>{team.name}</span>
+                                    {team.category && (
+                                      <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground uppercase">
+                                        {team.category}
+                                      </span>
                                     )}
-                                  </>
-                                ) : (
-                                  <span className="text-muted-foreground">—</span>
-                                )}
-                              </td>
+                                  </div>
+                                </td>
 
-                              {/* Assigned Evaluator dropdown */}
-                              <td className="px-4 py-3">
-                                <div className="flex items-center gap-2">
-                                  <select
-                                    value={assignment?.evaluatorId ?? ""}
-                                    disabled={assigningTeamId === team.id}
-                                    onChange={(e) => {
-                                      if (e.target.value) handleAssign(team.id, e.target.value);
-                                      else handleUnassign(team.id);
-                                    }}
-                                    className="h-7 text-xs rounded border border-border bg-background px-2 text-foreground cursor-pointer min-w-[170px]"
-                                  >
-                                    <option value="">— Not Assigned —</option>
-                                    {evaluatorProfiles.map((ev) => (
-                                      <option key={ev.id} value={ev.id}>{ev.fullName}</option>
-                                    ))}
-                                  </select>
-                                  {assignment && (
-                                    <button
-                                      onClick={() => handleUnassign(team.id)}
-                                      className="h-5 w-5 rounded-full bg-rose-100 text-rose-600 hover:bg-rose-200 flex items-center justify-center transition-colors shrink-0"
-                                      title="Remove assignment"
-                                    >
-                                      <X className="h-3 w-3" />
-                                    </button>
+                                {/* PS Number */}
+                                <td className="px-4 py-3">
+                                  {team.psNumber ? (
+                                    <span className="inline-flex font-mono text-xs font-bold text-navy bg-navy/10 px-2 py-0.5 rounded border border-navy/20 uppercase">
+                                      {team.psNumber}
+                                    </span>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground/50 italic">—</span>
                                   )}
-                                </div>
-                              </td>
+                                </td>
 
-                            </tr>
-                          );
-                        })}
+                                {/* Team Lead pill (same as students page) */}
+                                <td className="px-4 py-3">
+                                  {leader ? (
+                                    <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
+                                      {leader.fullName}
+                                    </span>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground italic">—</span>
+                                  )}
+                                </td>
+
+                                {/* Dept & Year */}
+                                <td className="px-4 py-3 text-sm text-foreground">
+                                  {leader ? (
+                                    <>
+                                      <span className="font-medium">{formatDept(leader.department)}</span>
+                                      {leader.year && (
+                                        <span className="text-muted-foreground"> · {toRomanYear(leader.year)}</span>
+                                      )}
+                                    </>
+                                  ) : (
+                                    <span className="text-muted-foreground">—</span>
+                                  )}
+                                </td>
+
+                                {/* Assigned Evaluator dropdown */}
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center gap-2">
+                                    <select
+                                      value={assignment?.evaluatorId ?? ""}
+                                      disabled={assigningTeamId === team.id}
+                                      onChange={(e) => {
+                                        if (e.target.value) handleAssign(team.id, e.target.value);
+                                        else handleUnassign(team.id);
+                                      }}
+                                      className="h-7 text-xs rounded border border-border bg-background px-2 text-foreground cursor-pointer min-w-[170px]"
+                                    >
+                                      <option value="">— Not Assigned —</option>
+                                      {evaluatorProfiles.map((ev) => (
+                                        <option key={ev.id} value={ev.id}>{ev.fullName}</option>
+                                      ))}
+                                    </select>
+                                    {assignment && (
+                                      <button
+                                        onClick={() => handleUnassign(team.id)}
+                                        className="h-5 w-5 rounded-full bg-rose-100 text-rose-600 hover:bg-rose-200 flex items-center justify-center transition-colors shrink-0"
+                                        title="Remove assignment"
+                                      >
+                                        <X className="h-3 w-3" />
+                                      </button>
+                                    )}
+                                  </div>
+                                </td>
+
+                              </tr>
+                            );
+                          })
+                        )}
                       </tbody>
                     </table>
                   </div>
