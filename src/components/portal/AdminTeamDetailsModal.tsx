@@ -10,6 +10,8 @@ export type AdminTeamDetailsData = {
     name: string;
     psNumber?: string | null;
     theme?: string | null;
+    techStack?: string | null;
+    businessSector?: string | null;
     problemStatement?: string | null;
     category?: string | null;
     leaderId: string;
@@ -137,6 +139,18 @@ export function AdminTeamDetailsModal({ data, onClose, onSelectStudent }: Props)
             {team.theme && (
               <span className="text-xs text-muted-foreground bg-muted px-2.5 py-0.5 rounded font-medium truncate max-w-[280px]">
                 Theme: {team.theme}
+              </span>
+            )}
+
+            {team.techStack && (
+              <span className="text-xs text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/50 px-2.5 py-0.5 rounded font-medium border border-blue-200/60 truncate max-w-[280px]">
+                Tech: {team.techStack}
+              </span>
+            )}
+
+            {team.businessSector && (
+              <span className="text-xs text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/50 px-2.5 py-0.5 rounded font-medium border border-purple-200/60 truncate max-w-[280px]">
+                Sector: {team.businessSector}
               </span>
             )}
 

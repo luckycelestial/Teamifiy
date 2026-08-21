@@ -40,6 +40,47 @@ export const SIH_THEMES = [
   "Miscellaneous",
 ] as const;
 
+export const TECH_STACK_OPTIONS = [
+  "AI & ML",
+  "Data Science & Analytics",
+  "Computer Vision, NLP & Generative AI",
+  "SD (Web & Mobile)",
+  "Cloud, DevOps & Cybersecurity",
+  "Blockchain & Web3",
+  "Immersive Tech & Game Development (AR / VR / XR)",
+  "ES, IoT & Edge AI",
+  "VLSI & Semiconductor Technology",
+  "Robotics, Control & Automation",
+  "Communication, Signal Processing & Networking",
+  "Power Electronics & Electrical Drives",
+  "Mechanical Design, Materials & Manufacturing",
+  "Biomedical & Biotechnology",
+  "Computational Modelling & Quantum Computing",
+] as const;
+
+export const BUSINESS_SECTOR_OPTIONS = [
+  "Healthcare, MedTech & Life Sciences",
+  "Assistive & Inclusive Technology",
+  "Sports, Fitness & Wellness",
+  "Agriculture, Food Technology & Rural Development",
+  "Marine, Fisheries & Ocean Resources",
+  "Energy, Renewables & CleanTech",
+  "Environment, Climate, Water & Waste Management",
+  "Manufacturing & Industry 4.0",
+  "Automotive, Mobility & Transportation",
+  "Logistics & Supply Chain",
+  "Construction, Infrastructure & Smart Cities",
+  "Mining, Metals, Materials & Textiles",
+  "FinTech, Banking, Insurance & Retail",
+  "Tourism, Media, Entertainment & Culture",
+  "Education, EdTech & Skill Development",
+  "Governance, Public Services & Social Impact",
+  "Disaster Management & Emergency Response",
+  "Defence, Security & Surveillance",
+  "Space & Aerospace",
+  "Campus & Institutional Innovation",
+] as const;
+
 export type Profile = {
   id: string;
   full_name: string;
@@ -54,6 +95,10 @@ export type Team = {
   name: string;
   ps_number?: string | null;
   theme?: string | null;
+  tech_stack?: string | null;
+  business_sector?: string | null;
+  techStack?: string | null;
+  businessSector?: string | null;
   problem_statement: string | null;
   category: string | null;
   leader_id: string;
@@ -124,6 +169,8 @@ export function TeamPanel({
     team.ps_number ? team.ps_number.replace(/^SIH26/i, "").replace(/^SIH/i, "").slice(0, 3) : ""
   );
   const [theme, setTheme] = useState(team.theme || "");
+  const [techStack, setTechStack] = useState(team.tech_stack || team.techStack || "");
+  const [businessSector, setBusinessSector] = useState(team.business_sector || team.businessSector || "");
   const [category, setCategory] = useState(team.category || "Software");
   const [psError, setPsError] = useState("");
   const [isSubmittingPs, setIsSubmittingPs] = useState(false);
@@ -145,6 +192,14 @@ export function TeamPanel({
       toast.error("Please select a Theme.");
       return;
     }
+    if (!techStack.trim()) {
+      toast.error("Please select a Technology Stack.");
+      return;
+    }
+    if (!businessSector.trim()) {
+      toast.error("Please select a Business Sector.");
+      return;
+    }
     if (!category.trim()) {
       toast.error("Please select a Category.");
       return;
@@ -158,6 +213,8 @@ export function TeamPanel({
         psNumber: fullPsNumber,
         theme: theme.trim(),
         category: category.trim(),
+        techStack: techStack.trim(),
+        businessSector: businessSector.trim(),
       });
       toast.success(`Problem statement ${fullPsNumber} submitted successfully! Details are now locked.`);
       router.refresh();
@@ -181,141 +238,163 @@ export function TeamPanel({
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {team.problem_statement && (
-            <div className="rounded-md bg-surface-muted p-3 text-sm">
-              <p className="font-semibold">Problem Statement</p>
-              <p className="text-muted-foreground">{team.problem_statement}</p>
-            </div>
-          )}
-          {team.category && (
-            <p className="text-xs text-muted-foreground">Category: {team.category}</p>
-          )}
-
-          <div className="space-y-2">
-            <p className="text-sm font-semibold">Members</p>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {members.map((m) => {
-                const p = memberProfiles.find((mp) => mp.id === m.user_id);
-                return (
-                  <div
-                    key={m.id}
-                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border p-3"
-                  >
-                    <div
-                      onClick={() => p && setSelectedStudent({
-                        fullName: p.full_name,
-                        email: p.email,
-                        department: p.department,
-                        year: p.year,
-                        phone: p.phone,
-                        isLeader: m.is_leader,
-                      })}
-                      title="Click to view contact details"
-                      className="cursor-pointer group flex-1"
-                    >
-                      <p className="font-semibold group-hover:text-navy group-hover:underline transition-colors flex items-center gap-1">
-                        {p?.full_name || "Student"}
-                        {m.is_leader && (
-                          <span className="ml-1 rounded-full bg-gold/20 px-2 py-0.5 text-xs font-bold text-navy">
-                            Lead
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-border text-left font-semibold text-muted-foreground">
+                  <th className="py-2.5">Member</th>
+                  <th className="py-2.5">Role</th>
+                  <th className="py-2.5">Department</th>
+                  <th className="py-2.5">Year</th>
+                  <th className="py-2.5">Email</th>
+                  {open && isLeader && <th className="py-2.5 text-right">Actions</th>}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/60">
+                {memberProfiles.map((p) => {
+                  const m = members.find((x) => x.user_id === p.id);
+                  const leader = m?.is_leader;
+                  return (
+                    <tr key={p.id} className="hover:bg-muted/40 transition-colors">
+                      <td className="py-2.5 font-medium text-foreground">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedStudent({
+                            fullName: p.full_name,
+                            email: p.email,
+                            department: p.department,
+                            year: p.year,
+                            phone: p.phone,
+                            isLeader: leader,
+                          })}
+                          className="hover:underline text-left cursor-pointer font-bold text-navy"
+                        >
+                          {p.full_name}
+                        </button>
+                      </td>
+                      <td className="py-2.5">
+                        {leader ? (
+                          <span className="rounded bg-amber-500/10 text-amber-900 border border-amber-500/30 px-2 py-0.5 font-bold text-[10px]">
+                            Leader
                           </span>
+                        ) : (
+                          <span className="text-muted-foreground">Member</span>
                         )}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {[p?.department, toRomanYear(p?.year)]
-                          .filter(Boolean)
-                          .join(" · ") || "Profile incomplete"}
-                      </p>
-                    </div>
-                    {isLeader && open && !m.is_leader && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        disabled={isPending}
-                        onClick={() => {
-                          startTransition(async () => {
-                            try {
-                              await removeMember(m.id);
-                              toast.success("Member removed.");
-                              router.refresh();
-                            } catch (err: unknown) {
-                              toast.error(err instanceof Error ? err.message : "Failed to remove member.");
-                            }
-                          });
-                        }}
-                      >
-                        Remove
-                      </Button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                      </td>
+                      <td className="py-2.5 text-muted-foreground">{p.department || "—"}</td>
+                      <td className="py-2.5 text-muted-foreground">{toRomanYear(p.year) || "—"}</td>
+                      <td className="py-2.5 text-muted-foreground font-mono text-[11px]">{p.email}</td>
+                      {open && isLeader && (
+                        <td className="py-2.5 text-right">
+                          {!leader && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 h-7 text-xs"
+                              disabled={isPending}
+                              onClick={() => {
+                                if (confirm(`Remove ${p.full_name} from team?`)) {
+                                  startTransition(async () => {
+                                    try {
+                                      if (m) await removeMember(m.id);
+                                      toast.success("Member removed");
+                                      router.refresh();
+                                    } catch (err: unknown) {
+                                      toast.error(err instanceof Error ? err.message : "Failed to remove");
+                                    }
+                                  });
+                                }
+                              }}
+                            >
+                              Remove
+                            </Button>
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
 
           {issues.length > 0 && (
-            <div className="rounded-md border border-warning/40 bg-warning/10 p-3 text-sm">
-              <p className="font-semibold text-amber-900">Validation Status</p>
-              <ul className="mt-1 space-y-1 text-xs text-amber-800">
-                {issues.map((i) => (
-                  <li key={i}>• {i}</li>
+            <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-3 text-xs text-amber-900 space-y-1">
+              <p className="font-semibold">Team Composition Guidance:</p>
+              <ul className="list-disc pl-4 space-y-0.5">
+                {issues.map((i, idx) => (
+                  <li key={idx}>{i}</li>
                 ))}
               </ul>
             </div>
           )}
 
+          {/* Leader and Member Team Action Controls */}
           {open && (
-            <div className="flex flex-wrap items-center gap-3 pt-2">
-              {isLeader && team.status === "forming" && (
-                <Button
-                  disabled={isPending || issues.length > 0}
-                  onClick={() => {
-                    startTransition(async () => {
-                      try {
-                        await updateTeamStatus(team.id, "submitted");
-                        toast.success("Team submitted for CFI review!");
-                        router.refresh();
-                      } catch (err: unknown) {
-                        toast.error(err instanceof Error ? err.message : "Failed to submit.");
-                      }
-                    });
-                  }}
-                >
-                  Submit Team
-                </Button>
-              )}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-border">
               {isLeader ? (
-                <Button
-                  variant="destructive"
-                  disabled={isPending}
-                  onClick={() => {
-                    startTransition(async () => {
-                      try {
-                        await disbandTeam(team.id);
-                        toast.success("Team disbanded.");
-                        router.refresh();
-                      } catch (err: unknown) {
-                        toast.error(err instanceof Error ? err.message : "Failed to disband.");
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-rose-600 border-rose-200 hover:bg-rose-50 text-xs"
+                    disabled={isPending}
+                    onClick={() => {
+                      if (confirm("Disband team? All members will be unassigned.")) {
+                        startTransition(async () => {
+                          try {
+                            await disbandTeam(team.id);
+                            toast.success("Team disbanded");
+                            router.refresh();
+                          } catch (err: unknown) {
+                            toast.error(err instanceof Error ? err.message : "Failed to disband");
+                          }
+                        });
                       }
-                    });
-                  }}
-                >
-                  Disband Team
-                </Button>
+                    }}
+                  >
+                    Disband Team
+                  </Button>
+
+                  {team.status === "forming" && members.length === TEAM_SIZE && (
+                    <Button
+                      size="sm"
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold"
+                      disabled={isPending}
+                      onClick={() => {
+                        startTransition(async () => {
+                          try {
+                            await updateTeamStatus(team.id, "submitted");
+                            toast.success("Team formation submitted!");
+                            router.refresh();
+                          } catch (err: unknown) {
+                            toast.error(err instanceof Error ? err.message : "Submission failed");
+                          }
+                        });
+                      }}
+                    >
+                      Submit Team Formation
+                    </Button>
+                  )}
+                </>
               ) : (
                 <Button
+                  size="sm"
                   variant="outline"
+                  className="text-rose-600 border-rose-200 hover:bg-rose-50 text-xs"
                   disabled={isPending}
                   onClick={() => {
-                    startTransition(async () => {
-                      try {
-                        await leaveTeam(currentUserId);
-                        toast.success("You left the team.");
-                        router.refresh();
-                      } catch (err: unknown) {
-                        toast.error(err instanceof Error ? err.message : "Failed to leave.");
-                      }
-                    });
+                    if (confirm("Leave this team?")) {
+                      startTransition(async () => {
+                        try {
+                          await leaveTeam(team.id);
+                          toast.success("You left the team");
+                          router.refresh();
+                        } catch (err: unknown) {
+                          toast.error(err instanceof Error ? err.message : "Failed to leave");
+                        }
+                      });
+                    }
                   }}
                 >
                   Leave Team
@@ -347,8 +426,8 @@ export function TeamPanel({
         <CardContent>
           {team.ps_number ? (
             /* Locked View State */
-            <div className="rounded-xl bg-muted/40 border border-border p-4">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="rounded-xl bg-muted/40 border border-border p-4 space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                 <div>
                   <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">PS NUMBER</p>
                   <p className="mt-1 font-mono text-base font-bold text-foreground bg-background px-3 py-1.5 rounded-lg border border-border inline-block">
@@ -368,7 +447,23 @@ export function TeamPanel({
                   </p>
                 </div>
               </div>
-              <div className="mt-3.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">TECHNOLOGY STACK</p>
+                  <p className="mt-1 text-sm font-semibold text-foreground bg-background px-3 py-1.5 rounded-lg border border-border">
+                    {team.tech_stack || team.techStack || "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">BUSINESS SECTOR ADDRESSED</p>
+                  <p className="mt-1 text-sm font-semibold text-foreground bg-background px-3 py-1.5 rounded-lg border border-border">
+                    {team.business_sector || team.businessSector || "—"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Lock className="h-3.5 w-3.5 text-amber-600" />
                 <span>Problem statement locked for Round 1 evaluation. Contact admin for any discrepancies.</span>
               </div>
@@ -376,6 +471,7 @@ export function TeamPanel({
           ) : isLeader ? (
             /* Submission Form for Team Leader */
             <form onSubmit={handleSubmitPs} className="space-y-4">
+              {/* Row 1: PS Number, Theme, Category */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                 {/* PS NUMBER (Fixed Prefix SIH26 + 3 Digits) */}
                 <div>
@@ -458,10 +554,71 @@ export function TeamPanel({
                 </div>
               </div>
 
+              {/* Row 2: Technology Stack & Business Sector Addressed */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {/* TECHNOLOGY STACK dropdown */}
+                <div>
+                  <label htmlFor="techStack" className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+                    TECHNOLOGY STACK <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    id="techStack"
+                    value={techStack}
+                    onChange={(e) => setTechStack(e.target.value)}
+                    className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm font-semibold text-foreground cursor-pointer focus:outline-none focus:ring-2 focus:ring-navy/40"
+                    required
+                  >
+                    <option value="" disabled className="text-muted-foreground">
+                      Select Technology Stack...
+                    </option>
+                    {TECH_STACK_OPTIONS.map((tech) => (
+                      <option key={tech} value={tech} className="text-foreground bg-background py-1">
+                        {tech}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-[10px] text-muted-foreground font-medium">
+                    Core technical architecture / domains used
+                  </p>
+                </div>
+
+                {/* BUSINESS SECTOR ADDRESSED dropdown */}
+                <div>
+                  <label htmlFor="businessSector" className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+                    BUSINESS SECTOR ADDRESSED <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    id="businessSector"
+                    value={businessSector}
+                    onChange={(e) => setBusinessSector(e.target.value)}
+                    className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm font-semibold text-foreground cursor-pointer focus:outline-none focus:ring-2 focus:ring-navy/40"
+                    required
+                  >
+                    <option value="" disabled className="text-muted-foreground">
+                      Select Business Sector...
+                    </option>
+                    {BUSINESS_SECTOR_OPTIONS.map((sec) => (
+                      <option key={sec} value={sec} className="text-foreground bg-background py-1">
+                        {sec}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-[10px] text-muted-foreground font-medium">
+                    Industry or societal sector your solution impacts
+                  </p>
+                </div>
+              </div>
+
               <div className="flex justify-end pt-1">
                 <Button
                   type="submit"
-                  disabled={isSubmittingPs || psDigits.replace(/\D/g, "").length !== 3 || !theme.trim()}
+                  disabled={
+                    isSubmittingPs ||
+                    psDigits.replace(/\D/g, "").length !== 3 ||
+                    !theme.trim() ||
+                    !techStack.trim() ||
+                    !businessSector.trim()
+                  }
                   className="bg-navy hover:bg-navy/90 text-white font-bold text-xs px-5 shadow-xs"
                 >
                   {isSubmittingPs ? "Submitting…" : "Submit Problem Statement"}

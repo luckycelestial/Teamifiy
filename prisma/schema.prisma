@@ -34,6 +34,8 @@ model Team {
   name             String
   psNumber         String?      @map("ps_number")
   theme            String?
+  techStack        String?      @map("tech_stack")
+  businessSector   String?      @map("business_sector")
   problemStatement String?      @map("problem_statement")
   category         String?
   leaderId         String       @map("leader_id")
