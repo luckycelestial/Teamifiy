@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/supabase-server";
 import { createClient } from "@supabase/supabase-js";
+import { sanitizeText, sanitizeEmail, sanitizeAlphanumericCode, sanitizePhone } from "@/lib/sanitize";
 
 const TEAM_SIZE = 6;
 
@@ -122,10 +123,10 @@ export async function addFacultyProfile(data: {
     throw new Error("Unauthorized: admin access required to add faculty.");
   }
 
-  const cleanEmail = data.email.trim().toLowerCase();
-  const cleanName = data.fullName.trim();
+  const cleanEmail = sanitizeEmail(data.email);
+  const cleanName = sanitizeText(data.fullName, 100);
   if (!cleanEmail || !cleanName) {
-    throw new Error("Full name and email are required.");
+    throw new Error("Valid full name and institutional email are required.");
   }
 
   const { data: existing } = await supabaseFast
@@ -139,14 +140,14 @@ export async function addFacultyProfile(data: {
   }
 
   const newId = `faculty_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-  const role = data.role || "evaluator";
+  const role = data.role === "admin" || data.role === "student" ? data.role : "evaluator";
 
   const { error } = await supabaseFast.from("profiles").insert({
     id: newId,
     full_name: cleanName,
     email: cleanEmail,
-    department: data.department?.trim() || null,
-    phone: data.phone?.trim() || null,
+    department: sanitizeText(data.department, 100) || null,
+    phone: sanitizePhone(data.phone),
     role: role,
     year: null,
   });
@@ -163,13 +164,17 @@ export async function updateProfile(userId: string, data: Partial<ProfileData>) 
     throw new Error("Unauthorized: you can only update your own profile.");
   }
 
+  const sanitizedFullName = sanitizeText(data.fullName, 100);
+  const sanitizedDept = sanitizeText(data.department, 100) || null;
+  const sanitizedPhone = sanitizePhone(data.phone);
+
   await supabaseFast
     .from("profiles")
     .update({
-      full_name: data.fullName,
-      department: data.department,
+      full_name: sanitizedFullName,
+      department: sanitizedDept,
       year: data.year,
-      phone: data.phone,
+      phone: sanitizedPhone,
     })
     .eq("id", userId);
 
@@ -177,30 +182,36 @@ export async function updateProfile(userId: string, data: Partial<ProfileData>) 
     return await prisma.profile.update({
       where: { id: userId },
       data: {
-        fullName: data.fullName,
-        department: data.department,
+        fullName: sanitizedFullName,
+        department: sanitizedDept,
         year: data.year,
-        phone: data.phone,
+        phone: sanitizedPhone,
       },
     });
   } catch (err) {
     console.warn("updateProfile prisma fallback:", err);
   }
 
-  return { id: userId, ...data };
+  return { id: userId, fullName: sanitizedFullName, department: sanitizedDept, phone: sanitizedPhone, year: data.year };
 }
 
 export async function ensureProfile(userId: string, email?: string) {
-  const cleanEmail = (email || "").trim().toLowerCase().replace(/\s+/g, "");
+  const cleanEmail = sanitizeEmail(email || "");
+  const cleanUserId = sanitizeAlphanumericCode(userId, 100);
 
-  const { data: existing } = await supabaseFast
-    .from("profiles")
-    .select("*")
-    .or(`id.eq.${userId},email.eq.${cleanEmail}`)
-    .limit(1);
+  // Safe parameterized queries preventing PostgREST string injection
+  let existingProfile = null;
+  if (cleanUserId) {
+    const { data } = await supabaseFast.from("profiles").select("*").eq("id", cleanUserId).limit(1);
+    if (data && data.length > 0) existingProfile = data[0];
+  }
+  if (!existingProfile && cleanEmail) {
+    const { data } = await supabaseFast.from("profiles").select("*").eq("email", cleanEmail).limit(1);
+    if (data && data.length > 0) existingProfile = data[0];
+  }
 
-  if (existing && existing.length > 0) {
-    const p = existing[0]!;
+  if (existingProfile) {
+    const p = existingProfile;
     return {
       id: p.id,
       email: p.email,
@@ -213,7 +224,7 @@ export async function ensureProfile(userId: string, email?: string) {
   }
 
   const newProfile = {
-    id: userId,
+    id: cleanUserId || userId,
     email: cleanEmail,
     full_name: cleanEmail ? cleanEmail.split("@")[0]! : "User",
     role: "student",
@@ -222,7 +233,7 @@ export async function ensureProfile(userId: string, email?: string) {
   await supabaseFast.from("profiles").insert(newProfile);
 
   return {
-    id: userId,
+    id: newProfile.id,
     email: cleanEmail,
     fullName: newProfile.full_name,
     department: null,
@@ -263,11 +274,15 @@ export async function createTeam(input: {
   await ensureProfile(input.leaderId);
 
   const teamId = `team_${Date.now()}`;
+  const sanitizedName = sanitizeText(input.name, 100);
+  const sanitizedProblem = sanitizeText(input.problemStatement, 3000);
+  const sanitizedCategory = sanitizeText(input.category, 50);
+
   await supabaseFast.from("teams").insert({
     id: teamId,
-    name: input.name,
-    problem_statement: input.problemStatement,
-    category: input.category,
+    name: sanitizedName,
+    problem_statement: sanitizedProblem,
+    category: sanitizedCategory,
     leader_id: input.leaderId,
     status: "submitted",
   });
@@ -279,7 +294,7 @@ export async function createTeam(input: {
     is_leader: true,
   });
 
-  return { id: teamId, ...input };
+  return { id: teamId, name: sanitizedName, problemStatement: sanitizedProblem, category: sanitizedCategory, leaderId: input.leaderId };
 }
 
 export async function leaveTeam(userId: string) {
@@ -438,12 +453,12 @@ export async function submitProblemStatement(teamId: string, data: { psNumber: s
     throw new Error("Problem statement has already been submitted and cannot be modified.");
   }
 
-  const psNumber = (data.psNumber || "").trim().toUpperCase();
-  const theme = (data.theme || "").trim();
-  const category = (data.category || "").trim();
+  const psNumber = sanitizeAlphanumericCode(data.psNumber, 30);
+  const theme = sanitizeText(data.theme, 200);
+  const category = sanitizeText(data.category, 50);
 
   if (!psNumber) {
-    throw new Error("PS Number is required.");
+    throw new Error("Valid alphanumeric PS Number is required.");
   }
   if (!theme) {
     throw new Error("Theme is required.");

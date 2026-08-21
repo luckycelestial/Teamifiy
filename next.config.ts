@@ -25,6 +25,21 @@ const securityHeaders = [
     key: "Permissions-Policy",
     value: "camera=(), microphone=(), geolocation=(), browsing-topics=()",
   },
+  {
+    key: "Content-Security-Policy",
+    value: [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://utmdlyfudvztbnwgnaye.supabase.co",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' https://fonts.gstatic.com data:",
+      "img-src 'self' blob: data: https://utmdlyfudvztbnwgnaye.supabase.co https://lh3.googleusercontent.com",
+      "connect-src 'self' https://utmdlyfudvztbnwgnaye.supabase.co wss://utmdlyfudvztbnwgnaye.supabase.co",
+      "frame-ancestors 'none'",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join("; "),
+  },
 ];
 
 const nextConfig: NextConfig = {
