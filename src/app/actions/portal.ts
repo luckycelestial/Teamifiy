@@ -270,8 +270,34 @@ export async function submitProblemStatement(teamId: string, data: { psNumber: s
   if (teamErr || !teamData) throw new Error("Team not found.");
 
   const isAdmin = await checkIsAdmin(session.id, session.email);
-  if (teamData.leader_id !== session.id && !isAdmin) {
-    throw new Error("Unauthorized: Only the team leader can submit the problem statement.");
+
+  if (!isAdmin) {
+    const cleanEmail = (session.email || "").trim().toLowerCase().replace(/\s+/g, "");
+    let activeProfileId = session.id;
+    if (cleanEmail) {
+      const { data: pEmail } = await supabaseFast.from("profiles").select("id").eq("email", cleanEmail).limit(1);
+      if (pEmail && pEmail.length > 0 && pEmail[0]?.id) {
+        activeProfileId = pEmail[0].id;
+      }
+    }
+
+    const isLeaderDirect = teamData.leader_id === session.id || teamData.leader_id === activeProfileId;
+
+    let isLeaderMembership = false;
+    if (!isLeaderDirect) {
+      const { data: mem } = await supabaseFast
+        .from("team_members")
+        .select("id")
+        .eq("team_id", teamId)
+        .in("user_id", [session.id, activeProfileId])
+        .eq("is_leader", true)
+        .limit(1);
+      isLeaderMembership = Boolean(mem && mem.length > 0);
+    }
+
+    if (!isLeaderDirect && !isLeaderMembership) {
+      throw new Error("Unauthorized: Only the team leader can submit the problem statement.");
+    }
   }
 
   // If already submitted and not admin, prevent change
