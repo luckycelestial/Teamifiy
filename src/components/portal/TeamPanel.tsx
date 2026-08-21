@@ -20,6 +20,26 @@ import { Lock, Sparkles, AlertCircle, CheckCircle2 } from "lucide-react";
 
 export const TEAM_SIZE = 6;
 
+export const SIH_THEMES = [
+  "Smart Automation",
+  "Fitness & Sports",
+  "Heritage & Culture",
+  "MedTech / BioTech / HealthTech",
+  "Agriculture, FoodTech & Rural Development",
+  "Smart Vehicles",
+  "Transportation & Logistics",
+  "Robotics and Drones",
+  "Clean & Green Technology",
+  "Tourism",
+  "Renewable / Sustainable Energy",
+  "Blockchain & Cybersecurity",
+  "Smart Education",
+  "Disaster Management",
+  "Toys and Games",
+  "Space Technology",
+  "Miscellaneous",
+] as const;
+
 export type Profile = {
   id: string;
   full_name: string;
@@ -380,19 +400,27 @@ export function TeamPanel({
                   </p>
                 </div>
 
-                {/* THEME input */}
+                {/* THEME dropdown */}
                 <div>
                   <label htmlFor="theme" className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
                     THEME <span className="text-rose-500">*</span>
                   </label>
-                  <Input
+                  <select
                     id="theme"
                     value={theme}
                     onChange={(e) => setTheme(e.target.value)}
-                    placeholder="e.g. Smart Automation, Healthcare"
-                    className="text-sm bg-background border-border font-medium"
+                    className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm font-semibold text-foreground cursor-pointer focus:outline-none focus:ring-2 focus:ring-navy/40"
                     required
-                  />
+                  >
+                    <option value="" disabled className="text-muted-foreground">
+                      Select Theme...
+                    </option>
+                    {SIH_THEMES.map((t) => (
+                      <option key={t} value={t} className="text-foreground bg-background py-1">
+                        {t}
+                      </option>
+                    ))}
+                  </select>
                   <p className="mt-1 text-[10px] text-muted-foreground font-medium">
                     Primary focus area of your solution
                   </p>
