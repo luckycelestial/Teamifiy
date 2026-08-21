@@ -7,10 +7,11 @@ This file tracks critical security learnings, vulnerability patterns, and securi
 **Learning:** Default Next.js configuration does not automatically set defensive HTTP headers; they must be explicitly configured in `next.config.ts`.
 **Prevention:** Enforce security headers globally on all routes (`/:path*`) via `headers()` in `next.config.ts`.
 
-## 2026-08-21 - Edge Middleware Registration for Server-Side Route Gating
-**Vulnerability:** Role-based route protection logic was located in `src/proxy.ts` rather than the Next.js convention `src/middleware.ts`. Consequently, Next.js bypassed edge execution on `/admin`, `/evaluator`, and `/dashboard`, relying solely on client-side React `useEffect` redirects.
-**Learning:** Next.js only recognizes and invokes edge middleware when defined at `src/middleware.ts` or root `middleware.ts` exporting a `middleware` function.
-**Prevention:** Always maintain active edge middleware in `src/middleware.ts` with explicit route matchers to reject or redirect unauthorized page requests before any component is rendered.
+## 2026-08-21 - Next.js 16 Proxy Convention & Server-Side Route Protection
+**Vulnerability:** Relying solely on client-side routing/redirects exposes backend server actions and UI bundles to unauthorized actors.
+**Learning:** In Next.js 16+, Middleware is deprecated and succeeded by the **Proxy** convention (`src/proxy.ts` exporting `proxy` and `config`). Proxy intercepts all incoming requests at the server level before pages are rendered.
+**Prevention:** Maintain active role-based gating and unauthenticated redirects in `src/proxy.ts`, paired with zero-trust session/role verification on every Server Action in `src/app/actions/portal.ts`.
+
 
 
 
