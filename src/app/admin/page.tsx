@@ -725,16 +725,15 @@ function AdminContent() {
                   <thead className="bg-muted/60 text-xs uppercase font-semibold text-muted-foreground border-b border-border">
                     <tr>
                       <th className="px-4 py-3">Student Name</th>
-                      <th className="px-4 py-3">Dept & Year</th>
+                      <th className="px-4 py-3">Dept &amp; Year</th>
                       <th className="px-4 py-3">Phone</th>
                       <th className="px-4 py-3">Team Status</th>
-                      <th className="px-4 py-3">Role</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
                     {filteredStudents.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                        <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
                           No registered students match this filter.
                         </td>
                       </tr>
@@ -761,17 +760,6 @@ function AdminContent() {
                                   Unassigned
                                 </span>
                               )}
-                            </td>
-                            <td className="px-4 py-3">
-                              <select
-                                value={(s as ProfileItem).role || "student"}
-                                onChange={(e) => handleRoleChange(s.id, e.target.value as "admin" | "evaluator" | "student")}
-                                className="h-7 text-xs rounded border border-border bg-background px-2 font-semibold text-foreground cursor-pointer"
-                              >
-                                <option value="student">Student</option>
-                                <option value="evaluator">Evaluator</option>
-                                <option value="admin">Admin</option>
-                              </select>
                             </td>
                           </tr>
                         );
