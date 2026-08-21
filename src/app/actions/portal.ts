@@ -449,7 +449,46 @@ export async function getAdminDashboardData() {
 
 export async function getEvaluatorDashboardData() {
   const session = await requireAuth();
-  return await getDashboardData(session.id, session.email);
+
+  // Get base dashboard data (all records, admin-style fetch)
+  const base = await getDashboardData(session.id, session.email);
+
+  // If not an evaluator (or is admin), return as-is
+  if (!base.isEvaluator || base.isAdmin) return base;
+
+  // Get the team IDs assigned to this evaluator
+  const assignedTeamIds = await getMyAssignedTeamIds(session.id);
+
+  // Return empty-state data if no assignments yet
+  if (assignedTeamIds.length === 0) {
+    return {
+      ...base,
+      teams: [],
+      memberships: [],
+      profiles: [base.profile],
+      hasAssignments: false,
+    };
+  }
+
+  const assignedSet = new Set(assignedTeamIds);
+
+  // Filter teams to only assigned ones
+  const filteredTeams = base.teams.filter((t) => assignedSet.has(t.id));
+
+  // Filter memberships to only those in assigned teams
+  const filteredMemberships = base.memberships.filter((m) => assignedSet.has(m.teamId));
+
+  // Filter profiles to only members of assigned teams + the evaluator themselves
+  const relevantUserIds = new Set(filteredMemberships.map((m) => m.userId));
+  const filteredProfiles = base.profiles.filter((p) => relevantUserIds.has(p.id));
+
+  return {
+    ...base,
+    teams: filteredTeams,
+    memberships: filteredMemberships,
+    profiles: filteredProfiles,
+    hasAssignments: true,
+  };
 }
 
 export async function toggleRegistrations(open: boolean) {
@@ -508,3 +547,104 @@ export async function saveTeamEvaluation(evalRecord: EvaluationRecord) {
   return { success: true, evaluations: current };
 }
 
+// ─── Evaluator Assignment Management ─────────────────────────────────────────
+
+export type EvaluatorAssignment = {
+  id: string;
+  teamId: string;
+  evaluatorId: string;
+  assignedBy: string | null;
+  assignedAt: string;
+};
+
+/** Returns all assignments — used by admin to build the assignments overview */
+export async function getAllAssignments(): Promise<EvaluatorAssignment[]> {
+  const { data, error } = await supabaseFast
+    .from("evaluator_assignments")
+    .select("id, team_id, evaluator_id, assigned_by, assigned_at");
+  if (error) { console.warn("getAllAssignments error:", error); return []; }
+  return (data || []).map((r: any) => ({
+    id: r.id,
+    teamId: r.team_id,
+    evaluatorId: r.evaluator_id,
+    assignedBy: r.assigned_by,
+    assignedAt: r.assigned_at,
+  }));
+}
+
+/** Returns only the team IDs assigned to a specific evaluator */
+export async function getMyAssignedTeamIds(evaluatorId: string): Promise<string[]> {
+  const { data, error } = await supabaseFast
+    .from("evaluator_assignments")
+    .select("team_id")
+    .eq("evaluator_id", evaluatorId);
+  if (error) { console.warn("getMyAssignedTeamIds error:", error); return []; }
+  return (data || []).map((r: any) => r.team_id as string);
+}
+
+/** Admin: assign a single team to an evaluator (upserts — replaces existing assignment) */
+export async function assignTeamToEvaluator(teamId: string, evaluatorId: string) {
+  const session = await requireAuth();
+  const isAdmin = await checkIsAdmin(session.id, session.email);
+  if (!isAdmin) throw new Error("Unauthorized: admin access required.");
+
+  const { error } = await supabaseFast
+    .from("evaluator_assignments")
+    .upsert(
+      { team_id: teamId, evaluator_id: evaluatorId, assigned_by: session.id },
+      { onConflict: "team_id" }
+    );
+  if (error) throw new Error(`Assignment failed: ${error.message}`);
+  return { success: true };
+}
+
+/** Admin: remove assignment for a team */
+export async function unassignTeam(teamId: string) {
+  const session = await requireAuth();
+  const isAdmin = await checkIsAdmin(session.id, session.email);
+  if (!isAdmin) throw new Error("Unauthorized: admin access required.");
+
+  const { error } = await supabaseFast
+    .from("evaluator_assignments")
+    .delete()
+    .eq("team_id", teamId);
+  if (error) throw new Error(`Unassign failed: ${error.message}`);
+  return { success: true };
+}
+
+/** Admin: auto-distribute all unassigned teams round-robin across evaluators */
+export async function autoAssignTeams() {
+  const session = await requireAuth();
+  const isAdmin = await checkIsAdmin(session.id, session.email);
+  if (!isAdmin) throw new Error("Unauthorized: admin access required.");
+
+  // Get all evaluator profiles
+  const { data: evaluators } = await supabaseFast
+    .from("profiles")
+    .select("id")
+    .eq("role", "evaluator");
+  if (!evaluators || evaluators.length === 0) throw new Error("No evaluators found.");
+
+  // Get already-assigned team IDs
+  const existingAssignments = await getAllAssignments();
+  const assignedTeamIds = new Set(existingAssignments.map((a) => a.teamId));
+
+  // Get all teams NOT yet assigned
+  const allTeams = await fetchAll("teams", "id", { column: "created_at", ascending: true });
+  const unassigned = allTeams.filter((t: any) => !assignedTeamIds.has(t.id));
+
+  if (unassigned.length === 0) return { success: true, assigned: 0 };
+
+  // Round-robin distribute
+  const inserts = unassigned.map((team: any, i: number) => ({
+    team_id: team.id,
+    evaluator_id: evaluators[i % evaluators.length]!.id,
+    assigned_by: session.id,
+  }));
+
+  const { error } = await supabaseFast
+    .from("evaluator_assignments")
+    .upsert(inserts, { onConflict: "team_id" });
+  if (error) throw new Error(`Auto-assign failed: ${error.message}`);
+  return { success: true, assigned: inserts.length };
+}

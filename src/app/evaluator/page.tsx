@@ -10,7 +10,7 @@ import { StatusBadge } from "@/components/portal/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { FileSpreadsheet, Award, Star, CheckCircle, Clock, AlertTriangle, Sparkles, Filter, Search } from "lucide-react";
+import { FileSpreadsheet, Award, Star, CheckCircle, Clock, AlertTriangle, Sparkles, Search } from "lucide-react";
 import XLSX from "xlsx-js-style";
 import { toRomanYear } from "@/lib/utils";
 import { StudentContactModal, StudentModalData } from "@/components/portal/StudentContactModal";
@@ -88,6 +88,25 @@ function EvaluatorContent() {
   const byId = new Map(allProfiles.map((p) => [p.id, p]));
   const allMemberships = data.memberships;
   const allTeams = data.teams;
+
+  // Empty state — evaluator has no assignments yet
+  const hasAssignments = (data as any).hasAssignments !== false;
+  if (!hasAssignments) {
+    return (
+      <div className="min-h-screen bg-surface-muted">
+        <PortalHeader isEvaluator role="evaluator" email={user.email} />
+        <main className="mx-auto max-w-3xl px-5 py-20 text-center">
+          <div className="mx-auto h-16 w-16 rounded-2xl bg-amber-100 flex items-center justify-center mb-5">
+            <Clock className="h-8 w-8 text-amber-600" />
+          </div>
+          <h2 className="text-xl font-extrabold text-foreground">No Team Assignments Yet</h2>
+          <p className="mt-2 text-sm text-muted-foreground max-w-sm mx-auto">
+            The admin hasn&apos;t assigned any teams to you yet. You&apos;ll see your evaluation batch here once assignments are made.
+          </p>
+        </main>
+      </div>
+    );
+  }
 
   const rows = allTeams.map((team) => {
     const members = allMemberships

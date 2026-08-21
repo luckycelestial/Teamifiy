@@ -4,14 +4,14 @@ import { useEffect, useState, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { getDashboardData, getAdminDashboardData, updateTeamStatus, rolloverAcademicYear, toggleRegistrations, updateUserRole } from "@/app/actions/portal";
+import { getDashboardData, getAdminDashboardData, updateTeamStatus, rolloverAcademicYear, toggleRegistrations, updateUserRole, getAllAssignments, assignTeamToEvaluator, unassignTeam, autoAssignTeams, getEvaluations, type EvaluationRecord, type EvaluatorAssignment } from "@/app/actions/portal";
 import { PortalHeader } from "@/components/portal/PortalHeader";
 import { StatusBadge } from "@/components/portal/StatusBadge";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { FileSpreadsheet } from "lucide-react";
+import { FileSpreadsheet, UserCheck, Shuffle, X } from "lucide-react";
 import XLSX from "xlsx-js-style";
 
 import { toRomanYear } from "@/lib/utils";
@@ -46,14 +46,23 @@ function AdminContent() {
   const [user, setUser] = useState<{ id: string; email: string } | null>(null);
   const [data, setData] = useState<Awaited<ReturnType<typeof getAdminDashboardData>> | null>(null);
   const [query, setQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"teams" | "students">("teams");
+  const [activeTab, setActiveTab] = useState<"teams" | "students" | "assignments">("teams");
   const [filterUnassigned, setFilterUnassigned] = useState(false);
+  const [assignments, setAssignments] = useState<EvaluatorAssignment[]>([]);
+  const [evaluations, setEvaluations] = useState<Record<string, EvaluationRecord>>({});
+  const [assigningTeamId, setAssigningTeamId] = useState<string | null>(null);
   const [selectedStudent, setSelectedStudent] = useState<StudentModalData | null>(null);
 
   async function loadData() {
     try {
-      const res = await getAdminDashboardData();
+      const [res, assignRes, evalRes] = await Promise.all([
+        getAdminDashboardData(),
+        getAllAssignments(),
+        getEvaluations(),
+      ]);
       setData(res);
+      setAssignments(assignRes);
+      setEvaluations(evalRes);
     } catch (e) {
       console.error(e);
       toast.error("Admin authorization failed.");
@@ -164,6 +173,42 @@ function AdminContent() {
       loadData();
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Failed to update user role");
+    }
+  }
+
+  async function handleAssign(teamId: string, evaluatorId: string) {
+    setAssigningTeamId(teamId);
+    try {
+      await assignTeamToEvaluator(teamId, evaluatorId);
+      toast.success("Team assigned successfully.");
+      const updated = await getAllAssignments();
+      setAssignments(updated);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Assignment failed");
+    } finally {
+      setAssigningTeamId(null);
+    }
+  }
+
+  async function handleUnassign(teamId: string) {
+    try {
+      await unassignTeam(teamId);
+      toast.success("Assignment removed.");
+      const updated = await getAllAssignments();
+      setAssignments(updated);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Unassign failed");
+    }
+  }
+
+  async function handleAutoAssign() {
+    try {
+      const result = await autoAssignTeams();
+      toast.success(`Auto-assigned ${result.assigned} teams across evaluators.`);
+      const updated = await getAllAssignments();
+      setAssignments(updated);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Auto-assign failed");
     }
   }
 
@@ -453,10 +498,7 @@ function AdminContent() {
             <Button
               variant={activeTab === "teams" ? "default" : "outline"}
               size="sm"
-              onClick={() => {
-                setActiveTab("teams");
-                setFilterUnassigned(false);
-              }}
+              onClick={() => { setActiveTab("teams"); setFilterUnassigned(false); }}
               className={`text-xs h-8 sm:h-9 px-2.5 sm:px-3.5 ${activeTab === "teams" ? "bg-navy text-white" : ""}`}
             >
               Teams ({allTeams.length})
@@ -464,10 +506,7 @@ function AdminContent() {
             <Button
               variant={activeTab === "students" && !filterUnassigned ? "default" : "outline"}
               size="sm"
-              onClick={() => {
-                setActiveTab("students");
-                setFilterUnassigned(false);
-              }}
+              onClick={() => { setActiveTab("students"); setFilterUnassigned(false); }}
               className={`text-xs h-8 sm:h-9 px-2.5 sm:px-3.5 ${activeTab === "students" && !filterUnassigned ? "bg-navy text-white" : ""}`}
             >
               All Students ({allProfiles.length})
@@ -475,13 +514,19 @@ function AdminContent() {
             <Button
               variant={activeTab === "students" && filterUnassigned ? "default" : "outline"}
               size="sm"
-              onClick={() => {
-                setActiveTab("students");
-                setFilterUnassigned(true);
-              }}
+              onClick={() => { setActiveTab("students"); setFilterUnassigned(true); }}
               className={`text-xs h-8 sm:h-9 px-2.5 sm:px-3.5 ${activeTab === "students" && filterUnassigned ? "bg-navy text-white" : ""}`}
             >
               Without Team ({unassignedCount})
+            </Button>
+            <Button
+              variant={activeTab === "assignments" ? "default" : "outline"}
+              size="sm"
+              onClick={() => { setActiveTab("assignments"); setFilterUnassigned(false); }}
+              className={`text-xs h-8 sm:h-9 px-2.5 sm:px-3.5 gap-1.5 ${activeTab === "assignments" ? "bg-navy text-white" : ""}`}
+            >
+              <UserCheck className="h-3.5 w-3.5" />
+              Evaluator Assignments
             </Button>
           </div>
 
@@ -724,6 +769,174 @@ function AdminContent() {
               </div>
             </Card>
           )}
+
+          {/* Evaluator Assignments Tab */}
+          {activeTab === "assignments" && (() => {
+            const evaluatorProfiles = allProfiles.filter((p) => (p as ProfileItem).role === "evaluator");
+            const assignmentByTeam = new Map(assignments.map((a) => [a.teamId, a]));
+            const assignedCount = assignments.length;
+            const unassignedTeamCount = allTeams.length - assignedCount;
+            const shortlistedCount = Object.values(evaluations).filter((e) => e.verdict === "shortlisted").length;
+
+            return (
+              <div className="space-y-4">
+                {/* Evaluator summary row */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <Card className="shadow-card-soft">
+                    <CardContent className="p-3 sm:p-4">
+                      <p className="text-xl font-extrabold">{evaluatorProfiles.length}</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mt-0.5">Evaluators</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="shadow-card-soft">
+                    <CardContent className="p-3 sm:p-4">
+                      <p className="text-xl font-extrabold text-emerald-600">{assignedCount}</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mt-0.5">Teams Assigned</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="shadow-card-soft">
+                    <CardContent className="p-3 sm:p-4">
+                      <p className="text-xl font-extrabold text-amber-600">{unassignedTeamCount}</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mt-0.5">Unassigned Teams</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="shadow-card-soft">
+                    <CardContent className="p-3 sm:p-4">
+                      <p className="text-xl font-extrabold text-primary">{shortlistedCount}</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mt-0.5">⭐ Shortlisted</p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Auto-assign bar */}
+                <div className="flex items-center justify-between rounded-xl border border-border bg-muted/30 px-4 py-3">
+                  <div>
+                    <p className="text-sm font-bold text-foreground">Auto-Distribute Unassigned Teams</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Round-robin: {unassignedTeamCount} unassigned teams → {evaluatorProfiles.length} evaluators
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={handleAutoAssign}
+                    disabled={unassignedTeamCount === 0 || evaluatorProfiles.length === 0}
+                    className="bg-navy hover:bg-navy/90 text-white text-xs font-bold gap-1.5 px-4 shadow-xs"
+                  >
+                    <Shuffle className="h-3.5 w-3.5" />
+                    Auto-Assign
+                  </Button>
+                </div>
+
+                {/* Teams assignment table */}
+                <Card className="shadow-card-soft overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm min-w-[700px]">
+                      <thead className="bg-muted/60 text-xs uppercase font-semibold text-muted-foreground border-b border-border">
+                        <tr>
+                          <th className="px-4 py-3">Team Name</th>
+                          <th className="px-4 py-3">Category</th>
+                          <th className="px-4 py-3">Assigned Evaluator</th>
+                          <th className="px-4 py-3 text-center">Score</th>
+                          <th className="px-4 py-3 text-center">Verdict</th>
+                          <th className="px-4 py-3">Change Evaluator</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {allTeams.map((team) => {
+                          const assignment = assignmentByTeam.get(team.id);
+                          const assignedEval = assignment ? byId.get(assignment.evaluatorId) : null;
+                          const evalRecord = evaluations[team.id];
+                          return (
+                            <tr key={team.id} className="hover:bg-muted/30 transition-colors">
+                              <td className="px-4 py-3 font-bold text-foreground">
+                                {team.name}
+                                <div className="text-xs font-normal text-muted-foreground">
+                                  {byId.get(team.leaderId)?.fullName ?? "—"}
+                                </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                {team.category ? (
+                                  <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground uppercase">
+                                    {team.category}
+                                  </span>
+                                ) : "—"}
+                              </td>
+                              <td className="px-4 py-3">
+                                {assignedEval ? (
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex flex-col">
+                                      <span className="font-semibold text-xs text-foreground">{assignedEval.fullName}</span>
+                                      <span className="text-[10px] text-muted-foreground">{assignedEval.email}</span>
+                                    </div>
+                                    <button
+                                      onClick={() => handleUnassign(team.id)}
+                                      className="h-5 w-5 rounded-full bg-rose-100 text-rose-600 hover:bg-rose-200 flex items-center justify-center transition-colors shrink-0"
+                                      title="Remove assignment"
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground italic">Not assigned</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                {typeof evalRecord?.totalScore === "number" ? (
+                                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold border ${
+                                    evalRecord.totalScore >= 80
+                                      ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                                      : evalRecord.totalScore >= 65
+                                        ? "bg-blue-100 text-blue-800 border-blue-300"
+                                        : evalRecord.totalScore >= 50
+                                          ? "bg-amber-100 text-amber-800 border-amber-300"
+                                          : "bg-rose-100 text-rose-800 border-rose-300"
+                                  }`}>
+                                    {evalRecord.totalScore}/100
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground/50">—</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                {evalRecord?.verdict === "shortlisted" && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">⭐ Shortlisted</span>
+                                )}
+                                {evalRecord?.verdict === "reviewed" && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-100 text-blue-800 border border-blue-300">✓ Reviewed</span>
+                                )}
+                                {evalRecord?.verdict === "rejected" && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-300">✗ Rejected</span>
+                                )}
+                                {(!evalRecord || evalRecord.verdict === "pending") && (
+                                  <span className="text-xs text-muted-foreground/50 italic">Pending</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3">
+                                <select
+                                  value={assignment?.evaluatorId ?? ""}
+                                  disabled={assigningTeamId === team.id}
+                                  onChange={(e) => {
+                                    if (e.target.value) handleAssign(team.id, e.target.value);
+                                    else handleUnassign(team.id);
+                                  }}
+                                  className="h-7 text-xs rounded border border-border bg-background px-2 text-foreground cursor-pointer min-w-[160px]"
+                                >
+                                  <option value="">— Select Evaluator —</option>
+                                  {evaluatorProfiles.map((ev) => (
+                                    <option key={ev.id} value={ev.id}>{ev.fullName}</option>
+                                  ))}
+                                </select>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </Card>
+              </div>
+            );
+          })()}
         </div>
       </main>
 
