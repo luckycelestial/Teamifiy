@@ -840,10 +840,21 @@ function AdminContent() {
                                   )}
                                 </td>
 
-                                {/* Team Lead pill (same as students page) */}
+                                {/* Team Lead pill (opens contact/details modal) */}
                                 <td className="px-4 py-3">
                                   {leader ? (
-                                    <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
+                                    <span
+                                      onClick={() => setSelectedStudent({
+                                        fullName: leader.fullName,
+                                        email: leader.email ?? undefined,
+                                        department: leader.department,
+                                        year: leader.year,
+                                        phone: leader.phone,
+                                        isLeader: true,
+                                      })}
+                                      title="Team Leader — Click to view contact details"
+                                      className="inline-flex items-center rounded-full bg-emerald-100 hover:bg-emerald-200 border border-emerald-200 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 cursor-pointer transition-colors shadow-2xs"
+                                    >
                                       {leader.fullName}
                                     </span>
                                   ) : (
