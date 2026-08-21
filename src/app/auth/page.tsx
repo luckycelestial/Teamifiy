@@ -96,11 +96,11 @@ function AuthContent() {
             </div>
           )}
 
-          <div className="rounded-xl border border-border bg-card p-5 sm:p-6 shadow-sm space-y-4">
+          <div className="space-y-3 pt-2">
             <Button
               type="button"
               size="lg"
-              className="w-full py-6 text-sm sm:text-base font-semibold shadow-md transition-all hover:shadow-lg flex items-center justify-center gap-3 bg-white text-navy border border-border hover:bg-gold hover:text-navy hover:border-gold/60 cursor-pointer"
+              className="w-full py-6 text-sm sm:text-base font-semibold shadow-sm transition-all hover:shadow-md flex items-center justify-center gap-3 bg-card text-foreground border border-border hover:bg-gold hover:text-navy hover:border-gold/60 cursor-pointer rounded-xl"
               disabled={busy}
               onClick={google}
             >
