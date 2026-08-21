@@ -120,7 +120,9 @@ export function TeamPanel({
   const [selectedStudent, setSelectedStudent] = useState<StudentModalData | null>(null);
 
   // Problem Statement Submission State
-  const [psNumber, setPsNumber] = useState(team.ps_number || "");
+  const [psDigits, setPsDigits] = useState(
+    team.ps_number ? team.ps_number.replace(/^SIH26/i, "").replace(/^SIH/i, "").slice(0, 3) : ""
+  );
   const [theme, setTheme] = useState(team.theme || "");
   const [category, setCategory] = useState(team.category || "Software");
   const [psError, setPsError] = useState("");
@@ -128,20 +130,19 @@ export function TeamPanel({
 
   const handleSubmitPs = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanPs = psNumber.trim().toUpperCase();
-    if (!cleanPs) {
-      setPsError("PS NUMBER is required.");
-      toast.error("PS NUMBER is required.");
+    const cleanDigits = psDigits.replace(/\D/g, "").trim();
+    if (!cleanDigits) {
+      setPsError("Please enter the 3-digit PS number.");
+      toast.error("Please enter the 3-digit PS number.");
       return;
     }
-    // Client side check: must be in all caps
-    if (cleanPs !== cleanPs.toUpperCase()) {
-      setPsError("PS NUMBER must be in ALL CAPS.");
-      toast.error("PS NUMBER must be in ALL CAPS.");
+    if (cleanDigits.length < 3) {
+      setPsError("PS number must be exactly 3 digits (e.g. 042).");
+      toast.error("PS number must be exactly 3 digits (e.g. 042).");
       return;
     }
     if (!theme.trim()) {
-      toast.error("Please enter the Theme.");
+      toast.error("Please select a Theme.");
       return;
     }
     if (!category.trim()) {
@@ -149,14 +150,16 @@ export function TeamPanel({
       return;
     }
 
+    const fullPsNumber = `SIH26${cleanDigits}`;
+
     setIsSubmittingPs(true);
     try {
       await submitProblemStatement(team.id, {
-        psNumber: cleanPs,
+        psNumber: fullPsNumber,
         theme: theme.trim(),
         category: category.trim(),
       });
-      toast.success("Problem statement submitted successfully! Details are now locked.");
+      toast.success(`Problem statement ${fullPsNumber} submitted successfully! Details are now locked.`);
       router.refresh();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Failed to submit problem statement.");
@@ -374,29 +377,37 @@ export function TeamPanel({
             /* Submission Form for Team Leader */
             <form onSubmit={handleSubmitPs} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                {/* PS NUMBER input */}
+                {/* PS NUMBER (Fixed Prefix SIH26 + 3 Digits) */}
                 <div>
-                  <label htmlFor="psNumber" className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+                  <label htmlFor="psDigits" className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
                     PS NUMBER <span className="text-rose-500">*</span>
                   </label>
-                  <Input
-                    id="psNumber"
-                    value={psNumber}
-                    onChange={(e) => {
-                      // Client-side auto-uppercase validation
-                      const upper = e.target.value.toUpperCase().replace(/\s+/g, "");
-                      setPsNumber(upper);
-                      if (psError) setPsError("");
-                    }}
-                    placeholder="E.G. SIH1540"
-                    className="font-mono uppercase font-bold tracking-wider text-sm bg-background border-border"
-                    required
-                  />
+                  <div className="flex items-center rounded-md border border-border bg-background focus-within:ring-2 focus-within:ring-navy/40 overflow-hidden shadow-2xs">
+                    <span className="px-3 py-2 bg-muted/80 text-foreground font-mono font-black text-sm border-r border-border select-none tracking-wider">
+                      SIH26
+                    </span>
+                    <input
+                      id="psDigits"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={3}
+                      value={psDigits}
+                      onChange={(e) => {
+                        const digits = e.target.value.replace(/\D/g, "").slice(0, 3);
+                        setPsDigits(digits);
+                        if (psError) setPsError("");
+                      }}
+                      placeholder="042"
+                      className="w-full px-3 py-1.5 font-mono font-bold tracking-wider text-sm bg-transparent border-0 focus:outline-none placeholder:text-muted-foreground/40 text-foreground"
+                      required
+                    />
+                  </div>
                   {psError && (
                     <p className="mt-1 text-xs text-rose-600 font-medium">{psError}</p>
                   )}
                   <p className="mt-1 text-[10px] text-muted-foreground font-medium">
-                    Must be in ALL CAPS (e.g. SIH1540 / PS102)
+                    Enter the 3-digit problem ID (e.g. 042 → SIH26042)
                   </p>
                 </div>
 
@@ -450,7 +461,7 @@ export function TeamPanel({
               <div className="flex justify-end pt-1">
                 <Button
                   type="submit"
-                  disabled={isSubmittingPs || !psNumber.trim() || !theme.trim()}
+                  disabled={isSubmittingPs || psDigits.replace(/\D/g, "").length !== 3 || !theme.trim()}
                   className="bg-navy hover:bg-navy/90 text-white font-bold text-xs px-5 shadow-xs"
                 >
                   {isSubmittingPs ? "Submitting…" : "Submit Problem Statement"}
