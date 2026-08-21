@@ -27,7 +27,7 @@ function AuthContent() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : "",
+        redirectTo: (process.env.NEXT_PUBLIC_SITE_URL ?? (typeof window !== "undefined" ? window.location.origin : "")) + "/auth/callback",
         queryParams: {
           hd: "sece.ac.in",
           prompt: "select_account",

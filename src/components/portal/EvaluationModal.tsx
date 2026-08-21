@@ -11,6 +11,8 @@ export type EvaluationTeamData = {
   team: {
     id: string;
     name: string;
+    psNumber?: string | null;
+    theme?: string | null;
     category: string | null;
     problemStatement: string | null;
     status: string;
@@ -67,27 +69,27 @@ export function EvaluationModal({
 
   if (!data) return null;
 
-  const totalScore = Number(novelty || 0) + Number(technical || 0) + Number(impact || 0) + Number(presentation || 0);
+  const totalScore = novelty + technical + impact + presentation;
+
+  const handleSave = async () => {
+    await onSave({
+      teamId: data.team.id,
+      novelty,
+      technical,
+      impact,
+      presentation,
+      totalScore,
+      verdict,
+      remarks,
+      updatedAt: new Date().toISOString(),
+    });
+  };
 
   const getScoreBadge = (score: number) => {
     if (score >= 80) return "bg-emerald-500 text-white";
     if (score >= 65) return "bg-blue-600 text-white";
     if (score >= 50) return "bg-amber-500 text-white";
     return "bg-rose-500 text-white";
-  };
-
-  const handleSave = async () => {
-    await onSave({
-      teamId: data.team.id,
-      novelty: Number(novelty),
-      technical: Number(technical),
-      impact: Number(impact),
-      presentation: Number(presentation),
-      totalScore,
-      verdict,
-      remarks,
-      updatedAt: new Date().toISOString(),
-    });
   };
 
   return (
@@ -107,6 +109,11 @@ export function EvaluationModal({
                     {data.team.category}
                   </span>
                 )}
+                {data.team.psNumber && (
+                  <span className="rounded-full bg-navy/10 text-navy px-2 py-0.5 text-[10px] font-mono font-bold uppercase">
+                    {data.team.psNumber}
+                  </span>
+                )}
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">SIH 2026 Evaluation Form</p>
             </div>
@@ -122,14 +129,29 @@ export function EvaluationModal({
         {/* Modal Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {/* Problem Statement Card */}
-          <div className="rounded-xl border border-border bg-surface-muted p-4 space-y-1.5">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground uppercase tracking-wider">
-              <FileText className="h-3.5 w-3.5 text-primary" />
-              Problem Statement
+          <div className="rounded-xl border border-border bg-surface-muted p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                <FileText className="h-3.5 w-3.5 text-primary" />
+                Problem Statement Details
+              </div>
+              {data.team.psNumber && (
+                <span className="font-mono text-xs font-bold text-foreground bg-background px-2.5 py-0.5 rounded border border-border">
+                  PS: {data.team.psNumber}
+                </span>
+              )}
             </div>
-            <p className="text-sm font-medium text-foreground leading-relaxed">
-              {data.team.problemStatement || "No specific problem statement provided by team leader."}
-            </p>
+            {data.team.theme && (
+              <div className="text-xs">
+                <span className="font-bold text-muted-foreground uppercase">Theme:</span>{" "}
+                <span className="font-semibold text-foreground">{data.team.theme}</span>
+              </div>
+            )}
+            {data.team.problemStatement && (
+              <p className="text-sm font-medium text-foreground leading-relaxed">
+                {data.team.problemStatement}
+              </p>
+            )}
           </div>
 
           {/* Members Breakdown */}

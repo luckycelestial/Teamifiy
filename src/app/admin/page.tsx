@@ -445,34 +445,6 @@ function AdminContent() {
     <div className="min-h-screen bg-surface-muted">
       <PortalHeader isAdmin email={user.email} />
       <main className="mx-auto max-w-7xl px-4 sm:px-6 py-5 sm:py-8">
-        {/* Portal Registration Response Control Bar */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5 rounded-xl border border-border bg-card p-4 shadow-sm">
-          <div className="flex items-start sm:items-center gap-3">
-            <div className={`mt-1 sm:mt-0 h-3.5 w-3.5 rounded-full shrink-0 ${data.registrationsOpen ? "bg-emerald-500 animate-pulse" : "bg-rose-500"}`} />
-            <div>
-              <p className="text-xs sm:text-sm font-bold text-foreground">
-                SIH 2026 Portal Status:{" "}
-                <span className={data.registrationsOpen ? "text-emerald-700 font-extrabold" : "text-rose-700 font-extrabold"}>
-                  {data.registrationsOpen ? "Accepting Responses (OPEN)" : "Registrations Closed (STOPPED)"}
-                </span>
-              </p>
-              <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">
-                {data.registrationsOpen
-                  ? "Students can register, create teams, and accept team invitations."
-                  : "Student page displays: 'Registrations for SIH 2026 Internal Hackathon is Closed.'"}
-              </p>
-            </div>
-          </div>
-
-          <Button
-            size="sm"
-            variant={data.registrationsOpen ? "destructive" : "default"}
-            onClick={handleToggleRegistrations}
-            className={`w-full sm:w-auto text-xs font-semibold ${data.registrationsOpen ? "" : "bg-emerald-600 hover:bg-emerald-700 text-white"}`}
-          >
-            {data.registrationsOpen ? "Stop Receiving Responses" : "Resume Receiving Responses"}
-          </Button>
-        </div>
 
         {/* Stats Grid */}
         <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3">
@@ -565,7 +537,7 @@ function AdminContent() {
                         <th className="px-4 py-3">Members</th>
                         <th className="px-4 py-3">Validity</th>
                         <th className="px-4 py-3">Status</th>
-                        <th className="px-4 py-3">Actions</th>
+
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
@@ -660,43 +632,7 @@ function AdminContent() {
                             <StatusBadge status={team.status as "forming" | "submitted" | "approved" | "rejected" | "locked"} />
                           </td>
 
-                          {/* Action buttons */}
-                          <td className="px-4 py-3 min-w-[220px]">
-                            <div className="flex flex-wrap gap-1.5">
-                              <Button
-                                size="sm"
-                                disabled={issues.length > 0}
-                                onClick={() => handleSetStatus(team.id, "approved")}
-                                className="h-7 px-2.5 text-xs"
-                              >
-                                Approve
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleSetStatus(team.id, "rejected")}
-                                className="h-7 px-2.5 text-xs"
-                              >
-                                Send back
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleSetStatus(team.id, "locked")}
-                                className="h-7 px-2.5 text-xs"
-                              >
-                                Lock
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => handleSetStatus(team.id, "forming")}
-                                className="h-7 px-2.5 text-xs"
-                              >
-                                Reopen
-                              </Button>
-                            </div>
-                          </td>
+
                         </tr>
                       ))}
                     </tbody>
@@ -704,7 +640,7 @@ function AdminContent() {
                 </div>
               )}
             </Card>
-          ) : (
+          ) : activeTab === "students" ? (
             /* Registered Students Table View */
             <Card className="shadow-card-soft overflow-hidden">
               <div className="overflow-x-auto">
@@ -768,7 +704,7 @@ function AdminContent() {
                 </table>
               </div>
             </Card>
-          )}
+          ) : null}
 
           {/* Evaluator Assignments Tab */}
           {activeTab === "assignments" && (() => {
@@ -830,44 +766,76 @@ function AdminContent() {
                 {/* Teams assignment table */}
                 <Card className="shadow-card-soft overflow-hidden">
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm min-w-[700px]">
+                    <table className="w-full text-left text-sm min-w-[600px]">
                       <thead className="bg-muted/60 text-xs uppercase font-semibold text-muted-foreground border-b border-border">
                         <tr>
                           <th className="px-4 py-3">Team Name</th>
-                          <th className="px-4 py-3">Category</th>
+                          <th className="px-4 py-3">Team Lead</th>
+                          <th className="px-4 py-3">Dept &amp; Year</th>
                           <th className="px-4 py-3">Assigned Evaluator</th>
-                          <th className="px-4 py-3 text-center">Score</th>
-                          <th className="px-4 py-3 text-center">Verdict</th>
-                          <th className="px-4 py-3">Change Evaluator</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border">
                         {allTeams.map((team) => {
                           const assignment = assignmentByTeam.get(team.id);
-                          const assignedEval = assignment ? byId.get(assignment.evaluatorId) : null;
-                          const evalRecord = evaluations[team.id];
+                          const leader = byId.get(team.leaderId);
                           return (
                             <tr key={team.id} className="hover:bg-muted/30 transition-colors">
-                              <td className="px-4 py-3 font-bold text-foreground">
-                                {team.name}
-                                <div className="text-xs font-normal text-muted-foreground">
-                                  {byId.get(team.leaderId)?.fullName ?? "—"}
-                                </div>
-                              </td>
+
+                              {/* Team Name */}
                               <td className="px-4 py-3">
-                                {team.category ? (
-                                  <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground uppercase">
+                                <span className="font-bold text-foreground">{team.name}</span>
+                                {team.category && (
+                                  <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground uppercase">
                                     {team.category}
                                   </span>
-                                ) : "—"}
+                                )}
                               </td>
+
+                              {/* Team Lead pill */}
                               <td className="px-4 py-3">
-                                {assignedEval ? (
-                                  <div className="flex items-center gap-2">
-                                    <div className="flex flex-col">
-                                      <span className="font-semibold text-xs text-foreground">{assignedEval.fullName}</span>
-                                      <span className="text-[10px] text-muted-foreground">{assignedEval.email}</span>
-                                    </div>
+                                {leader ? (
+                                  <span className="inline-flex items-center gap-1.5 rounded-full bg-navy/10 border border-navy/20 px-2.5 py-1 text-xs font-semibold text-navy">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-navy shrink-0" />
+                                    {leader.fullName}
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground italic">—</span>
+                                )}
+                              </td>
+
+                              {/* Dept & Year */}
+                              <td className="px-4 py-3 text-sm text-foreground">
+                                {leader ? (
+                                  <>
+                                    <span className="font-medium">{formatDept(leader.department)}</span>
+                                    {leader.year && (
+                                      <span className="text-muted-foreground"> · {toRomanYear(leader.year)}</span>
+                                    )}
+                                  </>
+                                ) : (
+                                  <span className="text-muted-foreground">—</span>
+                                )}
+                              </td>
+
+                              {/* Assigned Evaluator dropdown */}
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-2">
+                                  <select
+                                    value={assignment?.evaluatorId ?? ""}
+                                    disabled={assigningTeamId === team.id}
+                                    onChange={(e) => {
+                                      if (e.target.value) handleAssign(team.id, e.target.value);
+                                      else handleUnassign(team.id);
+                                    }}
+                                    className="h-7 text-xs rounded border border-border bg-background px-2 text-foreground cursor-pointer min-w-[170px]"
+                                  >
+                                    <option value="">— Not Assigned —</option>
+                                    {evaluatorProfiles.map((ev) => (
+                                      <option key={ev.id} value={ev.id}>{ev.fullName}</option>
+                                    ))}
+                                  </select>
+                                  {assignment && (
                                     <button
                                       onClick={() => handleUnassign(team.id)}
                                       className="h-5 w-5 rounded-full bg-rose-100 text-rose-600 hover:bg-rose-200 flex items-center justify-center transition-colors shrink-0"
@@ -875,58 +843,10 @@ function AdminContent() {
                                     >
                                       <X className="h-3 w-3" />
                                     </button>
-                                  </div>
-                                ) : (
-                                  <span className="text-xs text-muted-foreground italic">Not assigned</span>
-                                )}
+                                  )}
+                                </div>
                               </td>
-                              <td className="px-4 py-3 text-center">
-                                {typeof evalRecord?.totalScore === "number" ? (
-                                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold border ${
-                                    evalRecord.totalScore >= 80
-                                      ? "bg-emerald-100 text-emerald-800 border-emerald-300"
-                                      : evalRecord.totalScore >= 65
-                                        ? "bg-blue-100 text-blue-800 border-blue-300"
-                                        : evalRecord.totalScore >= 50
-                                          ? "bg-amber-100 text-amber-800 border-amber-300"
-                                          : "bg-rose-100 text-rose-800 border-rose-300"
-                                  }`}>
-                                    {evalRecord.totalScore}/100
-                                  </span>
-                                ) : (
-                                  <span className="text-xs text-muted-foreground/50">—</span>
-                                )}
-                              </td>
-                              <td className="px-4 py-3 text-center">
-                                {evalRecord?.verdict === "shortlisted" && (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">⭐ Shortlisted</span>
-                                )}
-                                {evalRecord?.verdict === "reviewed" && (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-100 text-blue-800 border border-blue-300">✓ Reviewed</span>
-                                )}
-                                {evalRecord?.verdict === "rejected" && (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-300">✗ Rejected</span>
-                                )}
-                                {(!evalRecord || evalRecord.verdict === "pending") && (
-                                  <span className="text-xs text-muted-foreground/50 italic">Pending</span>
-                                )}
-                              </td>
-                              <td className="px-4 py-3">
-                                <select
-                                  value={assignment?.evaluatorId ?? ""}
-                                  disabled={assigningTeamId === team.id}
-                                  onChange={(e) => {
-                                    if (e.target.value) handleAssign(team.id, e.target.value);
-                                    else handleUnassign(team.id);
-                                  }}
-                                  className="h-7 text-xs rounded border border-border bg-background px-2 text-foreground cursor-pointer min-w-[160px]"
-                                >
-                                  <option value="">— Select Evaluator —</option>
-                                  {evaluatorProfiles.map((ev) => (
-                                    <option key={ev.id} value={ev.id}>{ev.fullName}</option>
-                                  ))}
-                                </select>
-                              </td>
+
                             </tr>
                           );
                         })}

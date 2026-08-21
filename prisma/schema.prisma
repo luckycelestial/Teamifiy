@@ -28,6 +28,8 @@ model Profile {
 model Team {
   id               String       @id @default(uuid())
   name             String
+  psNumber         String?      @map("ps_number")
+  theme            String?
   problemStatement String?      @map("problem_statement")
   category         String?
   leaderId         String       @map("leader_id")

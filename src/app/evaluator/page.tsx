@@ -132,6 +132,8 @@ function EvaluatorContent() {
     const matchesQuery = !q || (
       team.name.toLowerCase().includes(q) ||
       (team.category ?? "").toLowerCase().includes(q) ||
+      (team.psNumber ?? "").toLowerCase().includes(q) ||
+      (team.theme ?? "").toLowerCase().includes(q) ||
       (team.problemStatement ?? "").toLowerCase().includes(q) ||
       members.some((m) => m.fullName.toLowerCase().includes(q) || (m.department ?? "").toLowerCase().includes(q))
     );
@@ -381,20 +383,31 @@ function EvaluatorContent() {
                       <tr key={team.id} className="hover:bg-muted/30 transition-colors align-top">
                         {/* Team & Problem Statement */}
                         <td className="px-4 py-3.5 min-w-[240px] max-w-[280px]">
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-1.5">
                             <p className="font-extrabold text-foreground text-sm">{team.name}</p>
                             {team.category && (
                               <span className="rounded bg-muted px-1.5 py-0.2 text-[10px] font-bold text-muted-foreground uppercase">
                                 {team.category}
                               </span>
                             )}
+                            {team.psNumber && (
+                              <span className="rounded bg-navy/10 font-mono px-1.5 py-0.2 text-[10px] font-bold text-navy uppercase">
+                                {team.psNumber}
+                              </span>
+                            )}
                           </div>
 
-                          <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
+                          {team.theme && (
+                            <p className="text-[11px] font-semibold text-primary mt-1">
+                              Theme: <span className="font-normal text-muted-foreground">{team.theme}</span>
+                            </p>
+                          )}
+
+                          <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
                             {team.problemStatement ? (
                               team.problemStatement
                             ) : (
-                              <span className="italic text-muted-foreground/60">No problem statement listed</span>
+                              <span className="italic text-muted-foreground/60">No description provided</span>
                             )}
                           </p>
 

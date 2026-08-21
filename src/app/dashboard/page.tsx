@@ -102,6 +102,8 @@ export default function DashboardPage() {
   const teams = (data?.teams ?? []).map((t: any) => ({
     id: t.id,
     name: t.name,
+    ps_number: t.psNumber || t.ps_number,
+    theme: t.theme,
     problem_statement: t.problemStatement || t.problem_statement,
     category: t.category,
     leader_id: t.leaderId || t.leader_id,
@@ -155,6 +157,12 @@ export default function DashboardPage() {
             <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
               SIH 2026 Internal Hackathon — Team Leader Dashboard
             </p>
+          </div>
+
+          {/* Round 1 Status Pill */}
+          <div className="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50/80 px-4 py-1.5 text-xs font-bold text-rose-700 shadow-xs backdrop-blur-sm self-start sm:self-auto">
+            <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse shrink-0" />
+            Round 1 is On
           </div>
         </div>
 

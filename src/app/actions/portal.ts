@@ -258,6 +258,54 @@ export async function disbandTeam(teamId: string) {
   return await supabaseFast.from("teams").delete().eq("id", teamId);
 }
 
+export async function submitProblemStatement(teamId: string, data: { psNumber: string; theme: string; category: string }) {
+  const session = await requireAuth();
+
+  const { data: teamData, error: teamErr } = await supabaseFast
+    .from("teams")
+    .select("leader_id, ps_number")
+    .eq("id", teamId)
+    .maybeSingle();
+
+  if (teamErr || !teamData) throw new Error("Team not found.");
+
+  const isAdmin = await checkIsAdmin(session.id, session.email);
+  if (teamData.leader_id !== session.id && !isAdmin) {
+    throw new Error("Unauthorized: Only the team leader can submit the problem statement.");
+  }
+
+  // If already submitted and not admin, prevent change
+  if (teamData.ps_number && !isAdmin) {
+    throw new Error("Problem statement has already been submitted and cannot be modified.");
+  }
+
+  const psNumber = (data.psNumber || "").trim().toUpperCase();
+  const theme = (data.theme || "").trim();
+  const category = (data.category || "").trim();
+
+  if (!psNumber) {
+    throw new Error("PS Number is required.");
+  }
+  if (!theme) {
+    throw new Error("Theme is required.");
+  }
+  if (!category) {
+    throw new Error("Category is required.");
+  }
+
+  const { error: updateErr } = await supabaseFast
+    .from("teams")
+    .update({
+      ps_number: psNumber,
+      theme: theme,
+      category: category,
+    })
+    .eq("id", teamId);
+
+  if (updateErr) throw new Error(`Submission failed: ${updateErr.message}`);
+  return { success: true };
+}
+
 // ─── Admin-only mutations ─────────────────────────────────────────────────────
 
 export async function updateTeamStatus(teamId: string, status: string) {
@@ -405,7 +453,7 @@ export async function getDashboardData(userId: string, email?: string) {
     }));
 
     const teams = team ? [{
-      id: team.id, name: team.name, problemStatement: team.problem_statement,
+      id: team.id, name: team.name, psNumber: team.ps_number, theme: team.theme, problemStatement: team.problem_statement,
       category: team.category, leaderId: team.leader_id, status: team.status || "submitted", createdAt: team.created_at,
     }] : [];
 
@@ -419,7 +467,7 @@ export async function getDashboardData(userId: string, email?: string) {
   const [rawProfiles, rawMemberships, rawTeams] = await Promise.all([
     fetchAll("profiles", "id, full_name, email, department, year, phone, role", { column: "full_name", ascending: true }),
     fetchAll("team_members", "id, team_id, user_id, is_leader, joined_at"),
-    fetchAll("teams", "id, name, problem_statement, category, leader_id, status, created_at", { column: "created_at", ascending: false }),
+    fetchAll("teams", "id, name, ps_number, theme, problem_statement, category, leader_id, status, created_at", { column: "created_at", ascending: false }),
   ]);
 
   const profiles = rawProfiles.map((p: any) => ({
@@ -432,7 +480,7 @@ export async function getDashboardData(userId: string, email?: string) {
   }));
 
   const teams = rawTeams.map((t: any) => ({
-    id: t.id, name: t.name, problemStatement: t.problem_statement,
+    id: t.id, name: t.name, psNumber: t.ps_number, theme: t.theme, problemStatement: t.problem_statement,
     category: t.category, leaderId: t.leader_id, status: t.status || "submitted", createdAt: t.created_at,
   }));
 
