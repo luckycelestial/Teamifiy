@@ -19,6 +19,8 @@ vi.mock("@supabase/supabase-js", () => {
 
 describe("P5 Telemetry & Error Logging Action Suite", () => {
   beforeEach(() => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = "mock_key";
     vi.clearAllMocks();
   });
 

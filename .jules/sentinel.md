@@ -15,7 +15,12 @@ This file tracks critical security learnings, vulnerability patterns, and securi
 2. Strip HTML tags, dangerous schemes (`javascript:`, `data:`), and control chars via `src/lib/sanitize.ts`.
 3. Use parameterized queries instead of raw string interpolations in PostgREST calls.
 
+## 2026-08-22 - Secret Management & Hardcoded Fallback Token Elimination
+**Vulnerability:** Fallback Supabase publishable keys were embedded as string literals in Server Action source code (`src/app/actions/portal.ts` and `src/app/actions/telemetry.ts`), which risked token exposure in public version control.
+**Learning:** Fallback defaults often get copy-pasted across utility files during development. All clients should strictly source secrets and keys from environment variables and fail fast if missing.
+**Prevention:** Strictly load API keys from `process.env` and throw an explicit configuration error during initialization if absent.
 
-
-
-
+## 2026-08-22 - Edge & Mutation Sliding-Window Rate Limiting
+**Vulnerability:** Mutation actions (team creation, PS submission, evaluation scores) and edge routes were vulnerable to rapid-fire automated floods and brute-force attempts.
+**Learning:** Unrestricted mutations can overwhelm database connections and create race condition anomalies during high-velocity hackathon submission rounds.
+**Prevention:** Enforce in-memory sliding-window rate limiting (`src/lib/rate-limit.ts`) at both the Edge Proxy layer (60 req/min per IP) and Server Action mutation level.

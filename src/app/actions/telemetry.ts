@@ -3,9 +3,12 @@
 import { createClient } from "@supabase/supabase-js";
 import { sanitizeText } from "@/lib/sanitize";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://utmdlyfudvztbnwgnaye.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "sb_publishable_ER1byfGlz5J9GT7BrZ9Gtw_bbccrCHO";
-const supabaseFast = createClient(supabaseUrl, supabaseKey);
+function getSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !supabaseKey) return null;
+  return createClient(supabaseUrl, supabaseKey);
+}
 
 export type ErrorLogInput = {
   context: string;
@@ -19,13 +22,19 @@ export type ErrorLogInput = {
 
 export async function recordErrorLog(payload: ErrorLogInput) {
   try {
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      console.warn("recordErrorLog skipped: Supabase environment variables not configured.");
+      return { success: false };
+    }
+
     const sanitizedContext = sanitizeText(payload.context, 150) || "general";
     const sanitizedMessage = sanitizeText(payload.message, 1000) || "Unknown error";
     const sanitizedStack = payload.stack ? sanitizeText(payload.stack, 4000) : null;
     const sanitizedEmail = payload.userEmail ? sanitizeText(payload.userEmail, 255) : null;
     const sanitizedUrl = payload.url ? sanitizeText(payload.url, 500) : null;
 
-    const { error } = await supabaseFast.from("error_logs").insert({
+    const { error } = await supabase.from("error_logs").insert({
       context: sanitizedContext,
       message: sanitizedMessage,
       stack: sanitizedStack,
