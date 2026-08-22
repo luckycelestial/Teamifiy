@@ -9,6 +9,7 @@ import {
   disbandTeam,
   updateTeamStatus,
   submitProblemStatement,
+  type EvaluationRecord,
 } from "@/app/actions/portal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +17,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { StatusBadge } from "@/components/portal/StatusBadge";
 import { toRomanYear } from "@/lib/utils";
 import { StudentContactModal, StudentModalData } from "@/components/portal/StudentContactModal";
-import { Lock, Sparkles, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Lock, Sparkles, AlertCircle, CheckCircle2, Star, Clock, Award } from "lucide-react";
 
 export const TEAM_SIZE = 6;
 
@@ -143,6 +144,7 @@ type Props = {
   allMemberships?: Membership[];
   currentUserId: string;
   registrationsOpen?: boolean;
+  evaluation?: EvaluationRecord | null;
 };
 
 export function TeamPanel({
@@ -151,6 +153,7 @@ export function TeamPanel({
   profiles,
   currentUserId,
   registrationsOpen = true,
+  evaluation,
 }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -619,6 +622,129 @@ export function TeamPanel({
           )}
         </CardContent>
       </Card>
+
+      {/* Round 1 Evaluation Results Section */}
+      {evaluation ? (
+        <Card className="shadow-card-soft border-border overflow-hidden">
+          <CardHeader className="pb-3 border-b border-border/60 bg-muted/20">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-lg bg-navy/10 dark:bg-sky-950/60 text-navy dark:text-sky-300 flex items-center justify-center">
+                  <Sparkles className="h-4 w-4 text-gold" />
+                </div>
+                <div>
+                  <CardTitle className="text-base sm:text-lg font-bold text-foreground">
+                    Round 1 Evaluation Results
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Assessment &amp; Feedback from Official SIH Evaluator
+                  </CardDescription>
+                </div>
+              </div>
+
+              {/* Recommendation Verdict Badge */}
+              <div>
+                {evaluation.verdict === "shortlisted" && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 shadow-2xs">
+                    <Star className="h-3.5 w-3.5 fill-emerald-600" /> Recommended
+                  </span>
+                )}
+                {evaluation.verdict === "waitlist" && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300 shadow-2xs">
+                    <Clock className="h-3.5 w-3.5 text-amber-600" /> May be Considered
+                  </span>
+                )}
+                {evaluation.verdict === "rejected" && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-300 shadow-2xs">
+                    <AlertCircle className="h-3.5 w-3.5 text-rose-600" /> Not Recommended
+                  </span>
+                )}
+                {evaluation.verdict === "reviewed" && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-300 shadow-2xs">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" /> Reviewed
+                  </span>
+                )}
+              </div>
+            </div>
+          </CardHeader>
+
+          <CardContent className="p-5 sm:p-6 space-y-5">
+            {/* Total Score Banner & Rubric Breakdown Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+              <div className="sm:col-span-1 rounded-xl bg-card border border-border p-4 flex flex-col items-center justify-center text-center shadow-2xs">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Total Score</p>
+                <div className="mt-1">
+                  <span className="text-3xl font-black text-navy dark:text-sky-400">
+                    {evaluation.totalScore}
+                  </span>
+                  <span className="text-xs font-bold text-muted-foreground ml-1">/ 100</span>
+                </div>
+              </div>
+
+              <div className="sm:col-span-4 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                <div className="rounded-xl border border-border/60 bg-muted/20 p-3 text-center">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Novelty</p>
+                  <p className="text-base font-extrabold text-foreground mt-0.5">
+                    {evaluation.novelty} <span className="text-[10px] text-muted-foreground">/ 25</span>
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border/60 bg-muted/20 p-3 text-center">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Technical</p>
+                  <p className="text-base font-extrabold text-foreground mt-0.5">
+                    {evaluation.technical} <span className="text-[10px] text-muted-foreground">/ 25</span>
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border/60 bg-muted/20 p-3 text-center">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Impact</p>
+                  <p className="text-base font-extrabold text-foreground mt-0.5">
+                    {evaluation.impact} <span className="text-[10px] text-muted-foreground">/ 25</span>
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border/60 bg-muted/20 p-3 text-center">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Presentation</p>
+                  <p className="text-base font-extrabold text-foreground mt-0.5">
+                    {evaluation.presentation} <span className="text-[10px] text-muted-foreground">/ 25</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Evaluator Remarks */}
+            {evaluation.remarks && (
+              <div className="rounded-xl border border-border/80 bg-muted/30 p-4 space-y-1.5">
+                <p className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
+                  <span>💬</span> Evaluator Remarks &amp; Feedback
+                </p>
+                <p className="text-xs text-foreground/90 leading-relaxed font-medium whitespace-pre-wrap bg-background p-3 rounded-lg border border-border">
+                  {evaluation.remarks}
+                </p>
+              </div>
+            )}
+
+            {/* May be Considered Reason */}
+            {evaluation.waitlistReason && (
+              <div className="rounded-xl border border-amber-300 dark:border-amber-900/60 bg-amber-50/70 dark:bg-amber-950/30 p-4 space-y-1.5">
+                <p className="text-xs font-bold text-amber-950 dark:text-amber-200 uppercase tracking-wider flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5 text-amber-600" /> &quot;May be Considered&quot; — Reason &amp; Criteria
+                </p>
+                <p className="text-xs text-amber-900 dark:text-amber-100 leading-relaxed font-medium bg-background/80 p-3 rounded-lg border border-amber-200/80 dark:border-amber-800/80">
+                  {evaluation.waitlistReason}
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      ) : team.ps_number ? (
+        <div className="rounded-xl border border-dashed border-border bg-card p-5 text-center text-muted-foreground space-y-1.5 shadow-2xs">
+          <div className="inline-flex items-center justify-center h-9 w-9 rounded-full bg-amber-500/10 text-amber-600 mb-1">
+            <Clock className="h-4 w-4" />
+          </div>
+          <h3 className="font-bold text-sm text-foreground">Round 1 Evaluation in Progress</h3>
+          <p className="text-xs text-muted-foreground max-w-md mx-auto">
+            Your problem statement ({team.ps_number}) is under review by the assigned evaluation panel. Results and rubric feedback will be published here once finalized.
+          </p>
+        </div>
+      ) : null}
 
       <StudentContactModal
         student={selectedStudent}

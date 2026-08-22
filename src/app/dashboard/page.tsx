@@ -173,6 +173,7 @@ export default function DashboardPage() {
             profiles={formattedProfiles}
             currentUserId={activeUserId}
             registrationsOpen={registrationsOpen}
+            evaluation={data?.evaluation}
           />
         ) : (
           <div className="p-8 text-center bg-background border border-border rounded-xl shadow-xs">

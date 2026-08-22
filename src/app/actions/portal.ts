@@ -646,9 +646,38 @@ export async function getDashboardData(userId: string, email?: string) {
       category: team.category, leaderId: team.leader_id, status: team.status || "submitted", createdAt: team.created_at,
     }] : [];
 
+    // Fetch evaluation for student's team
+    let evaluation: EvaluationRecord | null = null;
+    if (team?.id) {
+      const { data: evalRows } = await supabaseFast
+        .from("evaluations")
+        .select("*")
+        .eq("team_id", team.id)
+        .limit(1);
+
+      if (evalRows && evalRows.length > 0) {
+        const er = evalRows[0];
+        evaluation = {
+          teamId: er.team_id,
+          evaluatorId: er.evaluator_id,
+          evaluatorEmail: er.evaluator_email,
+          novelty: er.novelty,
+          technical: er.technical,
+          impact: er.impact,
+          presentation: er.presentation,
+          totalScore: er.total_score,
+          verdict: er.verdict,
+          remarks: er.remarks || "",
+          waitlistReason: er.waitlist_reason || "",
+          updatedAt: er.updated_at,
+        };
+      }
+    }
+
     return {
       profile, isAdmin, isEvaluator, role: userRole,
       profiles, memberships, teams, invitations: [], registrationsOpen,
+      evaluation,
     };
   }
 
@@ -678,6 +707,7 @@ export async function getDashboardData(userId: string, email?: string) {
   return {
     profile, isAdmin, isEvaluator, role: userRole,
     profiles, memberships, teams, invitations: [], registrationsOpen,
+    evaluation: null,
   };
 }
 
