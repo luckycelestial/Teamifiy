@@ -115,48 +115,50 @@ export function AdminTeamDetailsModal({ data, onClose, onSelectStudent }: Props)
         </button>
 
         {/* Top Header: Team Title & Metadata */}
-        <div className="border-b border-border pb-5 space-y-2">
-          <div className="flex flex-wrap items-center gap-2.5 pr-8">
-            <h2 className="text-2xl font-extrabold text-foreground tracking-tight">
-              {team.name}
-            </h2>
-            {team.category && (
-              <span className="text-xs font-normal text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                {team.category}
-              </span>
-            )}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 pt-1">
-            {team.psNumber ? (
-              <span className="inline-flex items-center gap-1 font-mono text-xs font-bold text-navy bg-navy/10 dark:text-sky-300 dark:bg-sky-950/50 px-2.5 py-0.5 rounded border border-navy/20 uppercase">
-                <FileText className="h-3 w-3" /> PS: {team.psNumber}
-              </span>
-            ) : (
-              <span className="text-xs text-muted-foreground italic">No PS Number Submitted</span>
-            )}
-
-            {team.theme && (
-              <span className="text-xs text-muted-foreground bg-muted px-2.5 py-0.5 rounded font-medium truncate max-w-[280px]">
-                Theme: {team.theme}
-              </span>
-            )}
-
-            {team.techStack && (
-              <span className="text-xs text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/50 px-2.5 py-0.5 rounded font-medium border border-blue-200/60 truncate max-w-[280px]">
-                Tech: {team.techStack}
-              </span>
-            )}
-
-            {team.businessSector && (
-              <span className="text-xs text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/50 px-2.5 py-0.5 rounded font-medium border border-purple-200/60 truncate max-w-[280px]">
-                Sector: {team.businessSector}
-              </span>
-            )}
-
+        <div className="border-b border-border pb-4 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2.5 pr-8">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-2xl font-extrabold text-foreground tracking-tight">
+                {team.name}
+              </h2>
+              {team.category && (
+                <span className="text-xs font-semibold px-2 py-0.5 rounded bg-muted text-foreground uppercase tracking-wider">
+                  {team.category}
+                </span>
+              )}
+            </div>
             <span className="rounded-full bg-emerald-50 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 px-2.5 py-0.5 text-xs font-semibold border border-emerald-200">
               {members.length}/6 Members
             </span>
+          </div>
+
+          {/* Problem Statement Domain Metadata Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+            <div className="rounded-lg bg-muted/40 p-2.5 border border-border">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">PS Number &amp; Theme</p>
+              <div className="mt-0.5 flex flex-col gap-0.5">
+                <span className="font-mono text-xs font-black text-navy dark:text-sky-300">
+                  {team.psNumber || "— Not Submitted —"}
+                </span>
+                <span className="text-xs font-medium text-foreground truncate" title={team.theme || undefined}>
+                  {team.theme || "Theme pending"}
+                </span>
+              </div>
+            </div>
+
+            <div className="rounded-lg bg-muted/40 p-2.5 border border-border">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Technology Stack</p>
+              <p className="mt-0.5 text-xs font-semibold text-foreground truncate" title={team.techStack || undefined}>
+                {team.techStack || "—"}
+              </p>
+            </div>
+
+            <div className="rounded-lg bg-muted/40 p-2.5 border border-border">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Business Sector</p>
+              <p className="mt-0.5 text-xs font-semibold text-foreground truncate" title={team.businessSector || undefined}>
+                {team.businessSector || "—"}
+              </p>
+            </div>
           </div>
         </div>
 

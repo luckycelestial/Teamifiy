@@ -101,6 +101,8 @@ function AdminContent() {
         name: team.name,
         psNumber: team.psNumber,
         theme: team.theme,
+        techStack: team.techStack || team.tech_stack,
+        businessSector: team.businessSector || team.business_sector,
         problemStatement: team.problemStatement,
         category: team.category,
         leaderId: team.leaderId,
