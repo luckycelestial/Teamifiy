@@ -1,7 +1,21 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function proxy(request: NextRequest) {
+  // Edge IP Rate Limiting (60 requests per minute per IP)
+  const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "anonymous-ip";
+  const rateCheck = checkRateLimit(`edge-ip:${clientIp}`, 60, 60_000);
+  if (!rateCheck.success) {
+    return new NextResponse("Too many requests. Please wait a minute before making more requests.", {
+      status: 429,
+      headers: {
+        "Retry-After": Math.ceil(rateCheck.resetMs / 1000).toString(),
+        "Content-Type": "text/plain",
+      },
+    });
+  }
+
   let response = NextResponse.next({
     request: {
       headers: request.headers,

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/supabase-server";
 import { createClient } from "@supabase/supabase-js";
 import { sanitizeText, sanitizeEmail, sanitizeAlphanumericCode, sanitizePhone } from "@/lib/sanitize";
+import { enforceActionRateLimit } from "@/lib/rate-limit";
 
 const TEAM_SIZE = 6;
 
@@ -266,6 +267,7 @@ export async function createTeam(input: {
   category: string;
 }) {
   const session = await requireAuth();
+  enforceActionRateLimit(session.id, "createTeam", 10, 60_000);
   if (session.id !== input.leaderId) {
     throw new Error("Unauthorized: you can only create a team as yourself.");
   }
@@ -417,6 +419,7 @@ export async function submitProblemStatement(
   }
 ) {
   const session = await requireAuth();
+  enforceActionRateLimit(session.id, "submitProblemStatement", 10, 60_000);
 
   const { data: teamData, error: teamErr } = await supabaseFast
     .from("teams")
@@ -508,6 +511,7 @@ export async function rolloverAcademicYear(input: {
   baseYear?: number;
 }) {
   const session = await requireAuth();
+  enforceActionRateLimit(session.id, "rolloverAcademicYear", 5, 60_000);
   const isAdmin = await checkIsAdmin(session.id, session.email);
   if (!isAdmin) throw new Error("Unauthorized: admin access required.");
 
@@ -832,6 +836,7 @@ export async function getEvaluations(): Promise<Record<string, EvaluationRecord>
 
 export async function saveTeamEvaluation(evalRecord: EvaluationRecord) {
   const session = await requireAuth();
+  enforceActionRateLimit(session.id, "saveTeamEvaluation", 60, 60_000);
   const isAdmin = await checkIsAdmin(session.id, session.email);
   const isEval = await checkIsEvaluator(session.id, session.email);
   if (!isEval) throw new Error("Unauthorized: evaluator access required.");
@@ -990,6 +995,7 @@ export async function unassignTeam(teamId: string) {
 /** Admin: auto-distribute all unassigned teams round-robin across evaluators */
 export async function autoAssignTeams() {
   const session = await requireAuth();
+  enforceActionRateLimit(session.id, "autoAssignTeams", 5, 60_000);
   const isAdmin = await checkIsAdmin(session.id, session.email);
   if (!isAdmin) throw new Error("Unauthorized: admin access required.");
 
