@@ -59,6 +59,26 @@ export const TECH_STACK_OPTIONS = [
   "Computational Modelling & Quantum Computing",
 ] as const;
 
+export const THEME_TO_BUSINESS_SECTOR: Record<string, string> = {
+  "Smart Automation": "Manufacturing & Industry 4.0",
+  "Fitness & Sports": "Sports, Fitness & Wellness",
+  "Heritage & Culture": "Tourism, Media, Entertainment & Culture",
+  "MedTech / BioTech / HealthTech": "Healthcare, MedTech & Life Sciences",
+  "Agriculture, FoodTech & Rural Development": "Agriculture, Food Technology & Rural Development",
+  "Smart Vehicles": "Automotive, Mobility & Transportation",
+  "Transportation & Logistics": "Logistics & Supply Chain",
+  "Robotics and Drones": "Manufacturing & Industry 4.0",
+  "Clean & Green Technology": "Environment, Climate, Water & Waste Management",
+  "Tourism": "Tourism, Media, Entertainment & Culture",
+  "Renewable / Sustainable Energy": "Energy, Renewables & CleanTech",
+  "Blockchain & Cybersecurity": "FinTech, Banking, Insurance & Retail",
+  "Smart Education": "Education, EdTech & Skill Development",
+  "Disaster Management": "Disaster Management & Emergency Response",
+  "Toys and Games": "Tourism, Media, Entertainment & Culture",
+  "Space Technology": "Space & Aerospace",
+  "Miscellaneous": "Governance, Public Services & Social Impact",
+};
+
 export const BUSINESS_SECTOR_OPTIONS = [
   "Healthcare, MedTech & Life Sciences",
   "Assistive & Inclusive Technology",
@@ -173,7 +193,6 @@ export function TeamPanel({
   );
   const [theme, setTheme] = useState(team.theme || "");
   const [techStack, setTechStack] = useState(team.tech_stack || team.techStack || "");
-  const [businessSector, setBusinessSector] = useState(team.business_sector || team.businessSector || "");
   const [category, setCategory] = useState(team.category || "Software");
   const [psError, setPsError] = useState("");
   const [isSubmittingPs, setIsSubmittingPs] = useState(false);
@@ -199,15 +218,12 @@ export function TeamPanel({
       toast.error("Please select a Technology Stack.");
       return;
     }
-    if (!businessSector.trim()) {
-      toast.error("Please select a Business Sector.");
-      return;
-    }
     if (!category.trim()) {
       toast.error("Please select a Category.");
       return;
     }
 
+    const mappedBusinessSector = THEME_TO_BUSINESS_SECTOR[theme.trim()] || "Open Innovation / Cross-Sectoral Solutions";
     const fullPsNumber = `SIH26${cleanDigits}`;
 
     setIsSubmittingPs(true);
@@ -217,7 +233,7 @@ export function TeamPanel({
         theme: theme.trim(),
         category: category.trim(),
         techStack: techStack.trim(),
-        businessSector: businessSector.trim(),
+        businessSector: mappedBusinessSector,
       });
       toast.success(`Problem statement ${fullPsNumber} submitted successfully! Details are now locked.`);
       router.refresh();
@@ -542,59 +558,30 @@ export function TeamPanel({
                 </div>
               </div>
 
-              {/* Row 2: Technology Stack & Business Sector Addressed */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                {/* TECHNOLOGY STACK dropdown */}
-                <div>
-                  <label htmlFor="techStack" className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
-                    TECHNOLOGY STACK <span className="text-rose-500">*</span>
-                  </label>
-                  <select
-                    id="techStack"
-                    value={techStack}
-                    onChange={(e) => setTechStack(e.target.value)}
-                    className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm font-semibold text-foreground cursor-pointer focus:outline-none focus:ring-2 focus:ring-navy/40"
-                    required
-                  >
-                    <option value="" disabled className="text-muted-foreground">
-                      Select Technology Stack...
+              {/* Row 2: Technology Stack */}
+              <div>
+                <label htmlFor="techStack" className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+                  TECHNOLOGY STACK <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  id="techStack"
+                  value={techStack}
+                  onChange={(e) => setTechStack(e.target.value)}
+                  className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm font-semibold text-foreground cursor-pointer focus:outline-none focus:ring-2 focus:ring-navy/40"
+                  required
+                >
+                  <option value="" disabled className="text-muted-foreground">
+                    Select Technology Stack...
+                  </option>
+                  {TECH_STACK_OPTIONS.map((tech) => (
+                    <option key={tech} value={tech} className="text-foreground bg-background py-1">
+                      {tech}
                     </option>
-                    {TECH_STACK_OPTIONS.map((tech) => (
-                      <option key={tech} value={tech} className="text-foreground bg-background py-1">
-                        {tech}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="mt-1 text-[10px] text-muted-foreground font-medium">
-                    Core technical architecture / domains used
-                  </p>
-                </div>
-
-                {/* BUSINESS SECTOR ADDRESSED dropdown */}
-                <div>
-                  <label htmlFor="businessSector" className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
-                    BUSINESS SECTOR ADDRESSED <span className="text-rose-500">*</span>
-                  </label>
-                  <select
-                    id="businessSector"
-                    value={businessSector}
-                    onChange={(e) => setBusinessSector(e.target.value)}
-                    className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm font-semibold text-foreground cursor-pointer focus:outline-none focus:ring-2 focus:ring-navy/40"
-                    required
-                  >
-                    <option value="" disabled className="text-muted-foreground">
-                      Select Business Sector...
-                    </option>
-                    {BUSINESS_SECTOR_OPTIONS.map((sec) => (
-                      <option key={sec} value={sec} className="text-foreground bg-background py-1">
-                        {sec}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="mt-1 text-[10px] text-muted-foreground font-medium">
-                    Industry or societal sector your solution impacts
-                  </p>
-                </div>
+                  ))}
+                </select>
+                <p className="mt-1 text-[10px] text-muted-foreground font-medium">
+                  Core technical architecture / domains used
+                </p>
               </div>
 
               <div className="flex justify-end pt-1">
@@ -604,8 +591,7 @@ export function TeamPanel({
                     isSubmittingPs ||
                     psDigits.replace(/\D/g, "").length !== 3 ||
                     !theme.trim() ||
-                    !techStack.trim() ||
-                    !businessSector.trim()
+                    !techStack.trim()
                   }
                   className="bg-navy hover:bg-navy/90 text-white font-bold text-xs px-5 shadow-xs"
                 >
