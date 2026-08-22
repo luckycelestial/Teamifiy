@@ -794,23 +794,23 @@ function AdminContent() {
                                 {/* Recommendation Verdict Column */}
                                 <td className="px-4 py-3 text-center whitespace-nowrap">
                                   {evalRec?.verdict === "shortlisted" && (
-                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300">
-                                      <Star className="h-3 w-3 fill-emerald-600" /> Recommended
+                                    <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                                      <Star className="h-3.5 w-3.5 fill-emerald-500 text-emerald-500" /> Recommended
                                     </span>
                                   )}
                                   {evalRec?.verdict === "waitlist" && (
-                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300">
-                                      <Clock className="h-3 w-3" /> May be Considered
+                                    <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-400">
+                                      <Clock className="h-3.5 w-3.5 text-amber-500" /> May be Considered
                                     </span>
                                   )}
                                   {evalRec?.verdict === "rejected" && (
-                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-300">
-                                      <AlertTriangle className="h-3 w-3" /> Not Recommended
+                                    <span className="inline-flex items-center gap-1.5 text-xs font-bold text-rose-600 dark:text-rose-400">
+                                      <AlertTriangle className="h-3.5 w-3.5 text-rose-500" /> Not Recommended
                                     </span>
                                   )}
                                   {evalRec?.verdict === "reviewed" && (
-                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-300">
-                                      <CheckCircle2 className="h-3 w-3" /> Reviewed
+                                    <span className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400">
+                                      <CheckCircle2 className="h-3.5 w-3.5 text-blue-500" /> Reviewed
                                     </span>
                                   )}
                                   {(!evalRec || !evalRec.verdict || evalRec.verdict === "pending") && (
