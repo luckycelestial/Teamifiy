@@ -679,12 +679,13 @@ function AdminContent() {
                           <th className="px-4 py-3">Team Lead</th>
                           <th className="px-4 py-3">Dept &amp; Year</th>
                           <th className="px-4 py-3">Assigned Evaluator</th>
+                          <th className="px-4 py-3 text-center">Score</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border">
                         {filteredTeams.length === 0 ? (
                           <tr>
-                            <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                            <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
                               No teams match this search query.
                             </td>
                           </tr>
@@ -692,6 +693,7 @@ function AdminContent() {
                           filteredTeams.map(({ team, members }) => {
                             const assignment = assignmentByTeam.get(team.id);
                             const leader = byId.get(team.leaderId);
+                            const evalRec = evaluations[team.id];
                             return (
                               <tr key={team.id} className="hover:bg-muted/30 transition-colors">
 
@@ -787,6 +789,42 @@ function AdminContent() {
                                       </button>
                                     )}
                                   </div>
+                                </td>
+
+                                {/* Score Column */}
+                                <td className="px-4 py-3 text-center whitespace-nowrap">
+                                  {evalRec && typeof evalRec.totalScore === "number" ? (
+                                    <div className="inline-flex flex-col items-center gap-1">
+                                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-black border ${
+                                        evalRec.totalScore >= 80
+                                          ? "bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300"
+                                          : evalRec.totalScore >= 65
+                                          ? "bg-blue-50 text-blue-800 border-blue-300 dark:bg-blue-950/60 dark:text-blue-300"
+                                          : evalRec.totalScore >= 50
+                                          ? "bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300"
+                                          : "bg-rose-50 text-rose-800 border-rose-300 dark:bg-rose-950/60 dark:text-rose-300"
+                                      }`}>
+                                        {evalRec.totalScore} / 100
+                                      </span>
+                                      {evalRec.verdict === "shortlisted" && (
+                                        <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
+                                          ⭐ Recommended
+                                        </span>
+                                      )}
+                                      {evalRec.verdict === "waitlist" && (
+                                        <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400">
+                                          ⏳ May be Considered
+                                        </span>
+                                      )}
+                                      {evalRec.verdict === "rejected" && (
+                                        <span className="text-[10px] font-bold text-rose-700 dark:text-rose-400">
+                                          ⚠️ Not Recommended
+                                        </span>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground/50 italic">—</span>
+                                  )}
                                 </td>
 
                               </tr>
