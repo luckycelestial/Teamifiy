@@ -669,7 +669,7 @@ export function TeamPanel({
           </CardHeader>
 
           <CardContent className="p-5 sm:p-6 space-y-5">
-            {/* Total Score Banner & Rubric Breakdown Grid */}
+            {/* Total Score Banner & Rubric Breakdown Grid (Commented out per request)
             <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
               <div className="sm:col-span-1 rounded-xl bg-card border border-border p-4 flex flex-col items-center justify-center text-center shadow-2xs">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Total Score</p>
@@ -708,6 +708,7 @@ export function TeamPanel({
                 </div>
               </div>
             </div>
+            */}
 
             {/* Evaluator Remarks */}
             {evaluation.remarks && (
