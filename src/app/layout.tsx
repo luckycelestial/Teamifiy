@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { Toaster } from "sonner";
 import { AuthProvider } from "@/lib/auth";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import "../styles.css";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
@@ -25,7 +26,9 @@ export default function RootLayout({
     <html lang="en" className={plusJakartaSans.variable}>
       <body className="font-sans antialiased bg-background text-foreground min-h-screen">
         <AuthProvider>
-          {children}
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
           <Toaster
             richColors
             position="top-right"

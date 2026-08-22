@@ -12,7 +12,7 @@ This document details all technical enhancements, security hardenings, database 
 | **P2** | Migrate `sih_evaluations` JSON to Relational Table | Database / Backend | 3 hours | Eliminates concurrent evaluation race conditions | 🟢 Completed |
 | **P3** | Replace Vulnerable `xlsx` with `exceljs` | Security / Supply Chain | 2 hours | Resolves high-severity npm audit CVEs | 🟢 Completed |
 | **P4** | Implement Automated Server Action Test Suite | QA & Testing | 4 hours | Continuous regression prevention | 🟢 Completed |
-| **P5** | Add Centralized Error Logging & Client Telemetry | Observability | 2 hours | Real-time crash diagnostics for evaluators | 🟡 Ready to execute |
+| **P5** | Add Centralized Error Logging & Client Telemetry | Observability | 2 hours | Real-time crash diagnostics for evaluators | 🟢 Completed |
 | **P6** | Rate Limiting on OAuth & Evaluation Mutations | Security / Anti-Abuse | 2 hours | Protection against bot spam / rapid submission | 🟡 Ready to execute |
 
 ---
