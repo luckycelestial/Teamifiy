@@ -11,7 +11,7 @@ import { StatusBadge } from "@/components/portal/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { FileSpreadsheet, UserCheck, Shuffle, X, UserPlus } from "lucide-react";
+import { FileSpreadsheet, UserCheck, Shuffle, X, UserPlus, Star, Clock, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { exportAdminTeamFormationWorkbook } from "@/lib/excel-export";
 
 import { toRomanYear } from "@/lib/utils";
@@ -679,7 +679,7 @@ function AdminContent() {
                           <th className="px-4 py-3">Team Lead</th>
                           <th className="px-4 py-3">Dept &amp; Year</th>
                           <th className="px-4 py-3">Assigned Evaluator</th>
-                          <th className="px-4 py-3 text-center">Score</th>
+                          <th className="px-4 py-3 text-center">Recommendation Verdict</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border">
@@ -791,38 +791,29 @@ function AdminContent() {
                                   </div>
                                 </td>
 
-                                {/* Score Column */}
+                                {/* Recommendation Verdict Column */}
                                 <td className="px-4 py-3 text-center whitespace-nowrap">
-                                  {evalRec && typeof evalRec.totalScore === "number" ? (
-                                    <div className="inline-flex flex-col items-center gap-1">
-                                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-black border ${
-                                        evalRec.totalScore >= 80
-                                          ? "bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300"
-                                          : evalRec.totalScore >= 65
-                                          ? "bg-blue-50 text-blue-800 border-blue-300 dark:bg-blue-950/60 dark:text-blue-300"
-                                          : evalRec.totalScore >= 50
-                                          ? "bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300"
-                                          : "bg-rose-50 text-rose-800 border-rose-300 dark:bg-rose-950/60 dark:text-rose-300"
-                                      }`}>
-                                        {evalRec.totalScore} / 100
-                                      </span>
-                                      {evalRec.verdict === "shortlisted" && (
-                                        <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
-                                          ⭐ Recommended
-                                        </span>
-                                      )}
-                                      {evalRec.verdict === "waitlist" && (
-                                        <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400">
-                                          ⏳ May be Considered
-                                        </span>
-                                      )}
-                                      {evalRec.verdict === "rejected" && (
-                                        <span className="text-[10px] font-bold text-rose-700 dark:text-rose-400">
-                                          ⚠️ Not Recommended
-                                        </span>
-                                      )}
-                                    </div>
-                                  ) : (
+                                  {evalRec?.verdict === "shortlisted" && (
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300">
+                                      <Star className="h-3 w-3 fill-emerald-600" /> Recommended
+                                    </span>
+                                  )}
+                                  {evalRec?.verdict === "waitlist" && (
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300">
+                                      <Clock className="h-3 w-3" /> May be Considered
+                                    </span>
+                                  )}
+                                  {evalRec?.verdict === "rejected" && (
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-300">
+                                      <AlertTriangle className="h-3 w-3" /> Not Recommended
+                                    </span>
+                                  )}
+                                  {evalRec?.verdict === "reviewed" && (
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-300">
+                                      <CheckCircle2 className="h-3 w-3" /> Reviewed
+                                    </span>
+                                  )}
+                                  {(!evalRec || !evalRec.verdict || evalRec.verdict === "pending") && (
                                     <span className="text-xs text-muted-foreground/50 italic">—</span>
                                   )}
                                 </td>
